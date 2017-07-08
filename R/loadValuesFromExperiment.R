@@ -2,7 +2,7 @@
 #'
 #' This function allows you to express your love of cats.
 #' @param metadata A dataframe with the values loaded from a metadata file as described in https://github.com/homonecloco/expvip-web/wiki/LoadingMetadata#loading-metadata
-#' @param folder The folder with the expression values, named with the values in study_title in the metadata. 
+#' @param folder The folder with the expression values, named with the values in study_title in the metadata. cd
 #' @param unit Expression unit to be used as sufix of the .tsv files. Defaults to 'tpm'.
 #. @param values . Defaults to 'c(Development)'
 #' @keywords metadata load
