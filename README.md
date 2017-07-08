@@ -128,7 +128,7 @@ This table gives a human readable version of the ontologies.
 
 Beware, this table doesn't have headers. So when R reads it it automatically assign this names. x§
 
-##$ WGCNA
+## $WGCNA
 
 File: ``WGCNA_table.csv``
 * **Gene**
