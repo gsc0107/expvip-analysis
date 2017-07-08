@@ -5,9 +5,9 @@ This set of scripts are to analyse the expression on hexaploid wheat (but may be
 Tables used for `plot_genes_report.R`
 
 
-This tables are loaded with the function `loadGeneInformation(dir=../TablesForExploration`
+This tables are loaded with the function `loadGeneInformation(dir=../TablesForExploration)`
 
-##$canonicalTranscripts
+## $canonicalTranscripts
 
 File : **CanonicalTranscript.rds**
 
@@ -32,7 +32,7 @@ File : **CanonicalTranscript.rds**
 Only the genes that are present in the ``$meanTpms`` table are retained for the reports. 
 The expectation of genes per position is based ONLY on the genes that have ``geneconf=='HC'`` 
 
-##$meanTpms
+## $meanTpms
 
 File: ``MeanTpms.rds``
 
