@@ -1,4 +1,5 @@
-
+#!/usr/bin/env Rscript
+options(gsubfn.engine = "R")
 library(ggplot2)
 library(reshape2)
 library(sqldf)
@@ -10,8 +11,15 @@ library(geometry)
 library(gtable)
 library(goseq)
 
-folder<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/TablesForExploration"
-genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/modules/WGCNA_850/WGCNA_850_Module_15.txt"
+args = commandArgs(trailingOnly=TRUE)
+
+#folder<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/TablesForExploration"
+#genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/modules/WGCNA_850/WGCNA_850_Module_15.txt"
+
+folder<-args[1]
+genes_to_plot_path<-args[2]
+
+
 genes_to_plot<-read.csv(genes_to_plot_path)
 genes_to_plot<-as.vector(genes_to_plot[,1])
 name<-basename(genes_to_plot_path)
