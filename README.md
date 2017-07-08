@@ -45,7 +45,7 @@ File: ``MeanTpms.rds``
 
 The file contains the mean TPM per each factor (obtained by replicates) for each gene. 
 When the factor is ``all_means_filtered`` the number of samples represent the number of tissues/factors that whent into that category. So when ``samples == 1``  the gene is uniquely expressed. 
-##$triads
+## $triads
 
 File: ``Triads.rds``
 * **group_id**
@@ -71,7 +71,7 @@ File: ``Triads.rds``
 * **min_triad_sum**s
 * **dataset**
 
-##$triadMovement
+## $triadMovement
 
 File: ``TriadMovement.rds``
 
@@ -100,14 +100,14 @@ File: ``TriadMovement.rds``
 * **D.suppressed**
 * **dataset**
 
-##$gene_universe
+## $gene_universe
 
 File: ``universe_table.csv``
 
 * **gene**
 * **dataset**
 
-##$ontologies
+## $ontologies
 
 File: ``OntologiesForGenes.rds``
 
@@ -115,7 +115,7 @@ File: ``OntologiesForGenes.rds``
 * **ID**
 * **ontology**
 
-##$id_names
+## $id_names
 
 File: ``id_names_merged.txt``
 
@@ -128,7 +128,7 @@ This table gives a human readable version of the ontologies.
 
 Beware, this table doesn't have headers. So when R reads it it automatically assign this names. x§
 
-##$WGCNA
+##$ WGCNA
 
 File: ``WGCNA_table.csv``
 * **Gene**
