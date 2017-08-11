@@ -11,21 +11,6 @@ library(geometry)
 library(gtable)
 library(goseq)
 
-args = commandArgs(trailingOnly=TRUE)
-
-#folder<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/TablesForExploration"
-#genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/modules/WGCNA_850/WGCNA_850_Module_15.txt"
-
-folder<-args[1]
-genes_to_plot_path<-args[2]
-
-
-genes_to_plot<-read.csv(genes_to_plot_path)
-genes_to_plot<-as.vector(genes_to_plot[,1])
-name<-basename(genes_to_plot_path)
-path<-paste0(genes_to_plot_path,"_plots")
-
-
 loadGeneInformation<-function(dir="../TablesForExploration"){
     path<-paste0(dir,"/CanonicalTranscript.rds")
     canonicalTranscripts<-readRDS(path)
@@ -465,22 +450,25 @@ plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", 
 }
 
 get_dominance_summary_tables_per_factor<-function(selected_triads, 
-  description = "description",
-  experiment="HC_CS_no_stress"){
+                                                  description = "description",
+                                                  experiment="HC_CS_no_stress",
+                                                  n=NULL
+                                                 ){
     triads <- selected_triads$triads
     triads <- triads[triads$dataset==experiment, ]
     
     query <- paste0("SELECT factor, " , description , " as description, count(*) as count FROM triads GROUP BY factor, " , description )
-    #print(query)
-    table <- sqldf(query)
-    table$percentage <- round(100 *  table$count / sum(table$count),2)
     
+    table <- sqldf(query)
     casted <- dcast(table, factor  ~  description , value.var="count")
     rownames(casted) <- casted$factor
     casted$factor <- NULL
-    percentage <-  100 * casted / rowSums(casted) 
-    
-    pasted<-matrix(paste(as.matrix(round(casted,2)),
+    casted<-as.matrix(casted)
+    percentage <-  as.matrix(100 * casted / rowSums(casted))
+    if(! is.null(n)){
+        casted <- percentage * n / 100
+    }
+    pasted<-matrix(paste(as.matrix(round(casted,0)),
      as.matrix(round(percentage,2)) , sep=" - "),
     nrow=nrow(casted), 
     dimnames=dimnames(casted))
@@ -498,17 +486,17 @@ table_with_title<-function(title, table){
      colhead = list(fg_params=list(cex = 0.5)),
      rowhead = list(fg_params=list(cex = 0.5)))
 
- t1 <- tableGrob(table, theme=mytheme)
+ table2 <- tableGrob(table, theme=mytheme)
 
- title2 <- textGrob(title, gp=gpar(fontsize=10))
- table2 <- gtable_add_rows(
-    t1, 
-    heights = grobHeight(title2 ),
-    pos = 0)
- table2 <- gtable_add_grob(
-    table2, title2, 
-    1, 1, 1, 
-    ncol(table2))
+ #title2 <- textGrob(title, gp=gpar(fontsize=10))
+ #table2 <- gtable_add_rows(
+ #   t1, 
+ #   heights = grobHeight(title2 ),
+ #   pos = 0)
+ #table2 <- gtable_add_grob(
+ #   table2, title2, 
+ #   1, 1, 1, 
+ #   ncol(table2))
 
   g1<-arrangeGrob(grobs=list(table2), ncol=1, top=title )
 }
@@ -713,19 +701,18 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
             }
             name_tmp <-name
             name <- paste0(name, " Min genes in triad: ", i )
-            #print("About to plot for ")
-            #print(name)
-            #print("Number of triads:")
-            #print(nrow(local_triads$triads))
             plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
 
-            expected_desc    <-get_dominance_summary_tables_per_factor(geneInformation, experiment=s)
+            expected_desc    <-get_dominance_summary_tables_per_factor(geneInformation, 
+                                                                       experiment=s, 
+                                                                       n=length(genes_to_plot))
             expected_gen_desc<-get_dominance_summary_tables_per_factor(geneInformation,
-               description="general_description",
-               experiment=s)
+                                                                       description="general_description",
+                                                                       experiment=s,
+                                                                       n=length(genes_to_plot))
 
-            observed_desc    <-get_dominance_summary_tables_per_factor(geneInformation, experiment=s)
-            observed_gen_desc<-get_dominance_summary_tables_per_factor(geneInformation,
+            observed_desc    <-get_dominance_summary_tables_per_factor(local_triads, experiment=s)
+            observed_gen_desc<-get_dominance_summary_tables_per_factor(local_triads,
                description="general_description",
                experiment=s)
 
@@ -733,7 +720,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
               expected_desc, 
               expected_gen_desc, 
               experiment=s, title=name  )
-
+            
+            
 
             plots[[length(plots)+1]] <- table_with_title(paste(name,s, "Observed",sep="\n"),
                 observed_desc$pasted
@@ -757,22 +745,25 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         
     all_enrichments <- NULL
     for(g_u in unique(geneInformation$gene_universe$dataset)){
-        enrichment_test<- get_goseq_enrichment(geneInformation, genes_to_plot,  ontology="GO" , dataset=g_u) 
-        enrichment_test_po<- get_goseq_enrichment(geneInformation, genes_to_plot,  ontology="PO" , dataset=g_u) 
-        enrichment_test_to<- get_goseq_enrichment(geneInformation, genes_to_plot,  ontology="TO" , dataset=g_u) 
-        enrichment_test<-rbind(enrichment_test,enrichment_test_po)
-        enrichment_test<-rbind(enrichment_test,enrichment_test_to)
-        if(nrow(enrichment_test) == 0){
-            next
+        for(ont in unique(geneInformation$ontologies$ontology)){
+            enrichment_test<- get_goseq_enrichment(geneInformation, genes_to_plot,  ontology=ont , dataset=g_u)
+            if(nrow(enrichment_test) == 0){
+                next
+            }
+            enrichment_test$universe<-g_u
+            enrichment_test$ontology_universe <- ont
+            if(is.null(all_enrichments)){
+                all_enrichments <- enrichment_test
+            }
+            else{
+                all_enrichments<-rbind(all_enrichments, enrichment_test)
+            }
         }
-        enrichment_test$universe<-g_u
         
-        if(is.null(all_enrichments)){
-            all_enrichments <- enrichment_test
-        }
-        else{
-            all_enrichments<-rbind(all_enrichments, enrichment_test)
-        }
+        
+        
+        
+        
     }
 
     dir<-paste0(output_path,"/",name)
@@ -1065,7 +1056,13 @@ ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     
     g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2),  top=local_title ) 
     g1
-}
+}}
+
+args = commandArgs(trailingOnly=TRUE)
+#folder<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/TablesForExploration"
+#genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/modules/WGCNA_850/WGCNA_850_Module_15.txt"
+folder<-args[1]
+genes_to_plot_path<-args[2]
 
 print(name)
 print(paste0("number of genes to plot: ", length(genes_to_plot)))
@@ -1073,13 +1070,3 @@ print(head(genes_to_plot))
 
 geneInformation<-loadGeneInformation(dir=folder)
 g<-plot_gene_summary(geneInformation,genes_to_plot, name = name, output_path = path )
-
-
-
-
-
-
-
-
-
-
