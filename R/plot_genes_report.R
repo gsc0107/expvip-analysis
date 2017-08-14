@@ -61,7 +61,7 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
 
 
 
-plotHistogram<-function(table, column="size_cds"){
+plotHistogram<-function(table, column="size_cds", continuation = function(values){return values} ){
     table<-table[table[,column]>0,]
     probs <- c( 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)
     quantiles <- data.frame(quantile(table[,column], prob=probs,na.rm=TRUE, include.lowest=TRUE), stringsAsFactors=FALSE)
@@ -82,49 +82,48 @@ plotHistogram<-function(table, column="size_cds"){
                     na.rm=TRUE, 
                     include.lowest=TRUE))
                    )
-               ))
+                ))
 
-       table$quantile<-ifelse(is.na(table$quantile),7,table$quantile)
-       table$quantile<-as.factor(table$quantile)
+           table$quantile<-ifelse(is.na(table$quantile),7,table$quantile)
+           table$quantile<-as.factor(table$quantile)
 
-       iq <- quantiles$value[4] - quantiles$value[2]
+        iq <- quantiles$value[4] - quantiles$value[2]
 
-       xmax <- quantiles$value[3] + (iq * 2)
-       xmin <- quantiles$value[3] - (iq * 2)
-       if(xmin < 0){
-        xmin <- 0
-    }
+        xmax <- quantiles$value[3] + (iq * 2)
+        xmin <- quantiles$value[3] - (iq * 2)
+        if(xmin < 0){
+            xmin <- 0
+        }
     
-    if(xmax > local_max){
-        xmax <- local_max + 1
-    }
+        if(xmax > local_max){
+            xmax <- local_max + 1
+        }
 
-    p <- ggplot(table, aes_string(column, fill="quantile"))
-    p <- p + geom_vline(data=quantiles,aes(xintercept=quantiles$value) )
-    for(i in seq(1,nrow(quantiles))){
-        x_pos<-quantiles$value[i]
-        gtext <- textGrob(quantiles$quant[i], y=0.02,  gp = gpar(fontsize = 6,col = "red"))
-        p <- p + annotation_custom(gtext, xmin=x_pos, xmax=x_pos)
-    }
-    p <- p  + xlim(xmin, xmax) +
-    scale_fill_brewer(palette="Dark2")
+        p <- ggplot(table, aes_string(column, fill="quantile"))
+        p <- p + geom_vline(data=quantiles,aes(xintercept=quantiles$value) )
+        for(i in seq(1,nrow(quantiles))){
+            x_pos<-quantiles$value[i]
+            gtext <- textGrob(quantiles$quant[i], y=0.02,  gp = gpar(fontsize = 6,col = "red"))
+            p <- p + annotation_custom(gtext, xmin=x_pos, xmax=x_pos)
+        }
+        p <- p  + xlim(xmin, xmax) +
+        scale_fill_brewer(palette="Dark2")
     
-}
+    }
 
 
 
 
-p <- p + geom_histogram(bins=50, position = "identity") + theme_bw() 
-theme(legend.position="none")
-p <- p + ggtitle(paste0("Mean: ", round(local_mean,2), 
-   " SD:", round(local_sd,2),
-   " CV:", round(local_sd/local_mean, 2), 
-   " Median:", round(median(table[,column],2)),
-   " Max:", round(local_max,2),
-   " N:", nrow(table))) 
-
-p <- p + theme(plot.title = element_text(size=6))
-p
+    p <- p + geom_histogram(bins=50, position = "identity") + theme_bw() 
+    p <- p + theme(legend.position="none")
+    p <- p + ggtitle(paste0("Mean: ", round(local_mean,2), 
+        " SD:", round(local_sd,2),
+        " CV:", round(local_sd/local_mean, 2), 
+        " Median:", round(median(table[,column],2)),
+        " Max:", round(local_max,2),
+        " N:", nrow(table))) 
+    p <- p + theme(plot.title = element_text(size=6))
+    p
 }
 
 #This function gets the expected number of genes per each 5pc bin.    
@@ -433,7 +432,6 @@ plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", 
     xlab("All mean filter TPM for genes in triad")
     
     gs[[length(gs)+1]] <- ggplot(triadMovement, aes(factor_count)) +  geom_bar() + theme_bw() +
-    #gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="factor_count") + 
     xlab("No. of conditions of genes(count per triad)") +
     ggtitle(get_stats_title(triadMovement$factor_count)) + theme(plot.title = element_text(size=6))
 
@@ -441,17 +439,16 @@ plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", 
     
 
     p <- ggplot(triadMovement, aes(total_categories)) + geom_bar() + theme_bw()
-   # p <- plotHistogram(triadMovement, column="total_categories")
-   p <- p + labs(fill="Main\ncategory", x="No. of categories") +
-   ggtitle(get_stats_title(triadMovement$total_categories)) + theme(plot.title = element_text(size=6))
+    p <- p + labs(fill="Main\ncategory", x="No. of categories") +
+    ggtitle(get_stats_title(triadMovement$total_categories)) + theme(plot.title = element_text(size=6))
    
-   gs[[length(gs)+1]] <- p
+    gs[[length(gs)+1]] <- p
 
-   gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_max_distance")
-   gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_mean_distance")
-   gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="sum_mean_tpm")
-   g1<-arrangeGrob(grobs=gs, ncol=2, top=local_title )
-   g1
+    gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_max_distance")
+    gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_mean_distance")
+    gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="sum_mean_tpm")
+    g1<-arrangeGrob(grobs=gs, ncol=2, top=local_title )
+    g1
 }
 
 get_dominance_summary_tables_per_factor<-function(selected_triads, 
@@ -725,6 +722,10 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     gs<-list()
     plots<-list()
     
+    dir<-paste0(output_path,"/",name)
+    dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+
+
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Gene summary"))
     for(plot in stats_to_plot){
         p<-plotHistogram(local_table,column=plot)
@@ -743,6 +744,9 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     }
     
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
+
+
+    triada_movment_df<-NULL
     for(s in unique(geneInformation$triads$dataset)){
         for(i in c(1,2,3) ){
             local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
@@ -766,7 +770,49 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                                                                        experiment=s,
                                                                        n=observed_gen_desc$total)
 
-           
+
+            
+
+            o_l  <- observed_desc$long
+            og_l <- observed_gen_desc$long
+            e_l  <- expected_desc$long
+            eg_l <- expected_gen_desc$long
+
+            o_l$group <- "fine"
+            e_l$group <- "fine"
+            og_l$group <- "general"
+            eg_l$group <- "general"
+
+            o_l$sum_for <- "observed"
+            e_l$sum_for <- "expected"
+            og_l$sum_for <- "observed"
+            eg_l$sum_for <- "expected"
+
+            o_l$dataset <- name_tmp
+            og_l$dataset <- name_tmp
+            e_l$dataset <- name_tmp
+            eg_l$dataset <- name_tmp
+
+
+            o_l$dataset_for_triads <- s
+            og_l$dataset_for_triads <- s
+            e_l$dataset_for_triads <- s
+            eg_l$dataset_for_triads <- s
+
+            o_l$min_expressed_genes_in_triad <- i
+            og_l$min_expressed_genes_in_triad <- i
+            e_l$min_expressed_genes_in_triad <- i
+            eg_l$min_expressed_genes_in_triad <- i
+
+            if(is.null(triada_movment_df)){
+                triada_movment_df <- o_l
+            }
+            else{
+                triada_movment_df <- rbind(triada_movment_df, o_l)
+            }
+            triada_movment_df <- rbind(triada_movment_df, og_l)
+            triada_movment_df <- rbind(triada_movment_df, e_l)
+            triada_movment_df <- rbind(triada_movment_df, eg_l)
 
             plots[[length(plots)+1]] <-plot_dominance_summary_tables(local_triads,
               expected_desc, 
@@ -794,7 +840,12 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         
         
     }
-        
+    
+
+    output_enrichment<-paste0(dir, "/", "triad_movment_summary.csv")
+    write.csv(triada_movment_df, file=output_enrichment) 
+
+
     all_enrichments <- NULL
     for(g_u in unique(geneInformation$gene_universe$dataset)){
         for(ont in unique(geneInformation$ontologies$ontology)){
@@ -817,9 +868,6 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         
         
     }
-
-    dir<-paste0(output_path,"/",name)
-    dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 
     output_enrichment<-paste0(dir, "/", "enrichment.csv")
     write.csv(all_enrichments, file=output_enrichment)
@@ -1115,6 +1163,11 @@ args = commandArgs(trailingOnly=TRUE)
 #genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/modules/WGCNA_850/WGCNA_850_Module_15.txt"
 folder<-args[1]
 genes_to_plot_path<-args[2]
+name<-basename(genes_to_plot_path)
+path<-paste0(genes_to_plot_path,"_plots")
+
+genes_to_plot<-read.csv(genes_to_plot_path)
+genes_to_plot<-as.vector(genes_to_plot[,1])
 
 print(name)
 print(paste0("number of genes to plot: ", length(genes_to_plot)))
