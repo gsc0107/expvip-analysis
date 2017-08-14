@@ -43,16 +43,22 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
     path<-paste0(dir, "/WGCNA_table.csv")
     WGCNA <-  read.csv(path)
     
+    path<-paste0(dir, "/ObservedGOTermsWithSlim.csv")
+    go_slim<-read.csv(path, row.names=1)
+    
     list(canonicalTranscripts=canonicalTranscripts, 
-     meanTpms=meanTpms,
-     triads=triads, 
-     triadMovement=triadMovement,
-     gene_universe=gene_universe, 
-     ontologies=ontologies,
-     id_names=id_names,
-     WGCNA=WGCNA
+         meanTpms=meanTpms,
+         triads=triads, 
+         triadMovement=triadMovement,
+         gene_universe=gene_universe, 
+         ontologies=ontologies,
+         id_names=id_names,
+         WGCNA=WGCNA,
+         GOSlim=go_slim
      )
 }
+
+
 
 
 plotHistogram<-function(table, column="size_cds"){
@@ -645,6 +651,38 @@ get_goseq_enrichment<-function(geneInformation, genes_to_plot,
         sig.GO$over_rep_padj, 
         sig.GO$under_rep_padj )
     sig.GO$percentage<- round(100 * sig.GO$numDEInCat/sig.GO$numInCat,2)
+    
+    ret<-sig.GO
+    
+    slim<-geneInformation$GOSlim
+    sig.GO <- sqldf("SELECT category, 
+over_represented_pvalue,
+under_represented_pvalue,
+numDEInCat,
+numInCat,
+ontology,
+over_rep_padj,
+under_rep_padj,
+description,
+type,
+p_adjust,
+percentage,  
+GROUP_CONCAT(DISTINCT slim_acc) as slim_acc, 
+GROUP_CONCAT(DISTINCT slim_term_type) as slim_term_type,
+GROUP_CONCAT(DISTINCT slim_name) as slim_name 
+FROM ret LEFT JOIN slim ON category = acc 
+GROUP BY category, 
+over_represented_pvalue,
+under_represented_pvalue,
+numDEInCat,
+numInCat,
+ontology,
+over_rep_padj,
+under_rep_padj,
+description,
+type,
+p_adjust,
+percentage")
     
     
     sig.GO
