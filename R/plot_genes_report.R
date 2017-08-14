@@ -1,4 +1,3 @@
-#!/usr/bin/env Rscript
 options(gsubfn.engine = "R")
 library(ggplot2)
 library(reshape2)
@@ -457,27 +456,40 @@ get_dominance_summary_tables_per_factor<-function(selected_triads,
     triads <- selected_triads$triads
     triads <- triads[triads$dataset==experiment, ]
     
-    query <- paste0("SELECT factor, " , description , " as description, count(*) as count FROM triads GROUP BY factor, " , description )
-    
+    query <- paste0("SELECT factor, " , 
+                    description , 
+                    " as description, count(*) as count FROM triads GROUP BY factor, " , 
+                    description )
     table <- sqldf(query)
+    
     casted <- dcast(table, factor  ~  description , value.var="count")
+    
     rownames(casted) <- casted$factor
     casted$factor <- NULL
     casted<-as.matrix(casted)
-    percentage <-  as.matrix(100 * casted / rowSums(casted))
+    casted <- ifelse(is.na(casted),0, casted)
+    total_per_factor<-rowSums(casted)
+    percentage <-  as.matrix(100 * casted / total_per_factor)
+    
     if(! is.null(n)){
         casted <- percentage * n / 100
+        total_per_factor<-rowSums(casted)
     }
     pasted<-matrix(paste(as.matrix(round(casted,0)),
-     as.matrix(round(percentage,2)) , sep=" - "),
+    as.matrix(round(percentage,2)) , sep=" - "),
     nrow=nrow(casted), 
     dimnames=dimnames(casted))
     pasted<-matrix(paste0(pasted, "%"),
        nrow=nrow(casted), 
        dimnames=dimnames(casted))
-    
-    list(long=table, casted=casted, percentage=percentage, pasted=pasted)
+    pasted<-data.frame(pasted)
+   # print(total_per_factor)
+    pasted$total <-total_per_factor
+    long<-melt(casted)
+    colnames(long)<-c("factor", "description", "count")
+    list(long=long, casted=casted, percentage=percentage, pasted=pasted,total=total_per_factor )
 }
+
 
 table_with_title<-function(title, table){
 
@@ -702,19 +714,21 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
             name_tmp <-name
             name <- paste0(name, " Min genes in triad: ", i )
             plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
-
-            expected_desc    <-get_dominance_summary_tables_per_factor(geneInformation, 
-                                                                       experiment=s, 
-                                                                       n=length(genes_to_plot))
-            expected_gen_desc<-get_dominance_summary_tables_per_factor(geneInformation,
-                                                                       description="general_description",
-                                                                       experiment=s,
-                                                                       n=length(genes_to_plot))
-
+            
             observed_desc    <-get_dominance_summary_tables_per_factor(local_triads, experiment=s)
             observed_gen_desc<-get_dominance_summary_tables_per_factor(local_triads,
                description="general_description",
                experiment=s)
+
+            expected_desc    <-get_dominance_summary_tables_per_factor(geneInformation, 
+                                                                       experiment=s, 
+                                                                       n=observed_desc$total)
+            expected_gen_desc<-get_dominance_summary_tables_per_factor(geneInformation,
+                                                                       description="general_description",
+                                                                       experiment=s,
+                                                                       n=observed_gen_desc$total)
+
+           
 
             plots[[length(plots)+1]] <-plot_dominance_summary_tables(local_triads,
               expected_desc, 
@@ -1056,7 +1070,7 @@ ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     
     g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2),  top=local_title ) 
     g1
-}}
+}
 
 args = commandArgs(trailingOnly=TRUE)
 #folder<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/TablesForExploration"
