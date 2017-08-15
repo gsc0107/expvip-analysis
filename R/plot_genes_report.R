@@ -1248,4 +1248,4 @@ print(paste0("number of genes to plot: ", length(genes_to_plot)))
 print(head(genes_to_plot))
 
 geneInformation<-loadGeneInformation(dir=folder)
-g<-plot_gene_summary(geneInformation,genes_to_plot, name = name, output_path = path )
+g <- plot_gene_summary(geneInformation, genes_to_plot, name = name, output_path = path )
