@@ -25,6 +25,27 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
     canonicalTranscripts$scaled_5per_position <- ifelse(canonicalTranscripts$scaled_5per_position == 0, 
         5, 
         canonicalTranscripts$scaled_5per_position)
+
+    path<-paste0(dir, "/region_partition.csv")
+    partition<-read.csv(path, row.names=1)
+    
+    partition_percentages<-round(100*partition/partition$Length)
+    partition_percentages$Chr <- rownames(partition_percentages)
+    ct<-canonicalTranscripts
+    ct_with_partition<-sqldf('SELECT ct.*, CASE 
+WHEN scaled_1per_position < R1_R2a THEN "R1"
+WHEN scaled_1per_position < R2a_C  THEN "R2A"
+WHEN scaled_1per_position < C_R2b  THEN "C"
+WHEN scaled_1per_position < R2b_R3  THEN "R2B"
+ELSE "R3" END as partition
+FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   ')
+    
+
+    x<-  as.factor(ct_with_partition$partition)
+    x <- factor(x,levels(x)[c(2,3,1,4,5)])
+    ct_with_partition$partition <- x 
+    canonicalTranscripts<-ct_with_partition
+
     path<-paste0(dir,"/TriadMovement.rds")
     triadMovement<-readRDS(path)
     
@@ -178,9 +199,8 @@ get_expected_values_per_5pc_bin<-function(gene_table,
 
 
 
-plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
-   expected_all_chromosomes=NULL, 
-   title = "Test"){
+plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr, 
+                                             title = "Test"){
     chromosomes=c("1A", "1B", "1D",
         "2A", "2B", "2D",
         "3A", "3B", "3D",
@@ -194,27 +214,20 @@ plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
     local_title = paste0(title, "\n Genes per chromosome 5% bin\nN: ", nrow(table) )
     
     t1 <- table[table$Chr != "chrUn",]
-
+ 
     
     expected_per_chr <- expected_per_chr[expected_per_chr$Chr != "chrUn",]
-    p <-ggplot(t1,aes(scaled_5per_position)) 
-    
-    p <- p + xlim(0,100)
-    p <- p + geom_bar() + theme_bw()
-    p <- p + facet_grid(chr_group~genome,  drop = TRUE)
+    p <-ggplot(t1,aes(as.factor(scaled_5per_position))) 
+
+    p <- p + geom_bar(aes(fill=partition)) 
+    p <- p + theme_bw()
+    p <- p + facet_grid(chr_group~genome,  drop = FALSE)
     p <- p + ylab(" count ") + xlab("")
-    if(!is.null(expected_all_chromosomes)){
-        expected_all_chromosomes$expected <- expected_all_chromosomes$expected/21
-        p <- p + geom_line(data=expected_all_chromosomes[, c("scaled_5per_position", "expected")],
-         aes(x=scaled_5per_position, y=expected), color="blue", size = 0.5)
-    }
+    p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
     
     p <- p + geom_point(data=expected_per_chr, 
-        aes(x=scaled_5per_position, y=expected), color="red", size = 0.5)
-    
-    
-    
-    
+        aes(x=as.factor(scaled_5per_position), y=expected), color="red", size = 0.5)
+
     gs[[length(gs)+1]] <- p
     
     p <-ggplot(table,aes(Chr, fill=geneconf))  + geom_bar() + theme_bw()
@@ -906,7 +919,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     write.csv(triada_movment_df, file=output_enrichment) 
 
     
+    output_pdf<-paste0(dir, "/",name ,".pdf")
+    g1<-marrangeGrob(plots, ncol=1, nrow=1, top="", bottom = quote(paste("page", g, "of",
+     pages)))
 
+    ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
 
     all_enrichments <- NULL
     for(g_u in unique(geneInformation$gene_universe$dataset)){
@@ -933,13 +950,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
     output_enrichment<-paste0(dir, "/", "enrichment.csv")
     write.csv(all_enrichments, file=output_enrichment)
-    output_pdf<-paste0(dir, "/",name ,".pdf")
-
-
-    g1<-marrangeGrob(plots, ncol=1, nrow=1, top="", bottom = quote(paste("page", g, "of",
-     pages)))
-
-    ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
+    
+    
     g1
 }
 
