@@ -200,7 +200,6 @@ get_expected_values_per_5pc_bin<-function(gene_table,
 
 
 plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
-                                             expected_all_chromosomes=NULL, 
                                              title = "Test"){
     
     gs<-list()
@@ -779,40 +778,45 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         tmp_df$value_type <- plot
         tmp_df$dataset<- "Gene summary"
         tmp_df$title  <- name
-        if(is.null(summary_df)){
+        if(is.null(summary_df)) 
+        {
             summary_df <- tmp_df
-            }else{
-                summary_df <- rbind(summary_df, tmp_df) 
+        }
+        else
+        {
+            summary_df <- rbind(summary_df, tmp_df) 
+        }
+
+    }
+    plots[[length(plots)+1]] <- arrangeGrob(grobs=gs, ncol=2 , top = paste0(name, "\n Gene properties"))
+    plots[[length(plots)+1]] <- plot_per_chromosome_5pc_bins_facet(local_table,
+        expected_per_chr=expected_per_chr, 
+        title=name)
+
+    plots[[length(plots)+1]] <- plot_per_partition_gene_count(local_table, title=name)
+    gene_density<-get_gene_density(local_table)
+    output_gene_density<-paste0(dir, "/", "gene_density_per_region.csv")
+    write.csv(gene_density, file=output_gene_density) 
+
+    plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
+    for(s in unique(geneInformation$meanTpms$subset)){
+        plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
+        plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
+        plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
+    }
+
+    plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
+    triada_movment_df<-NULL
+
+    for(s in unique(geneInformation$triads$dataset)){
+        for(i in c(1,2,3) ){
+            local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
+            if(nrow(local_triads$triads)== 0){
+                next
             }
-            
-        }
-        plots[[length(plots)+1]] <- arrangeGrob(grobs=gs, ncol=2 , top = paste0(name, "\n Gene properties"))
-        plots[[length(plots)+1]] <- plot_per_chromosome_5pc_bins_facet(local_table,
-         expected_per_chr=expected_per_chr, 
-         title=name)
-
-        plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
-        for(s in unique(geneInformation$meanTpms$subset)){
-            plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
-            plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
-            plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
-        }
-
-        plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
-
-
-        triada_movment_df<-NULL
-
-
-        for(s in unique(geneInformation$triads$dataset)){
-            for(i in c(1,2,3) ){
-                local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
-                if(nrow(local_triads$triads)== 0){
-                    next
-                }
-                name_tmp <-name
-                name <- paste0(name, " Min genes in triad: ", i )
-                plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
+            name_tmp <-name
+            name <- paste0(name, " Min genes in triad: ", i )
+            plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
 
             #tmp_df<- table_dominance_summary(local_triads, experiment=s, title=name)            
             #summary_df <- rbind(summary_df, tmp_df)
@@ -820,16 +824,16 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
             observed_desc    <-get_dominance_summary_tables_per_factor(local_triads, experiment=s)
             observed_gen_desc<-get_dominance_summary_tables_per_factor(local_triads,
-             description="general_description",
-             experiment=s)
+               description="general_description",
+               experiment=s)
 
             expected_desc    <-get_dominance_summary_tables_per_factor(geneInformation, 
-             experiment=s, 
-             n=observed_desc$total)
+               experiment=s, 
+               n=observed_desc$total)
             expected_gen_desc<-get_dominance_summary_tables_per_factor(geneInformation,
-             description="general_description",
-             experiment=s,
-             n=observed_gen_desc$total)
+               description="general_description",
+               experiment=s,
+               n=observed_gen_desc$total)
 
 
             
@@ -890,8 +894,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                 )
 
             plots[[length(plots)+1]] <- table_with_title(paste(name, s, "Observed",sep="\n"),
-             observed_gen_desc$pasted
-             )
+               observed_gen_desc$pasted
+               )
             plots[[length(plots)+1]] <- table_with_title(paste(name, s, "Expected",sep="\n"),
                 expected_gen_desc$pasted
                 )
@@ -911,7 +915,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     
     output_pdf<-paste0(dir, "/",name ,".pdf")
     g1<-marrangeGrob(plots, ncol=1, nrow=1, top="", bottom = quote(paste("page", g, "of",
-     pages)))
+       pages)))
 
     ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
 
@@ -931,11 +935,6 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                 all_enrichments<-rbind(all_enrichments, enrichment_test)
             }
         }
-        
-        
-        
-        
-        
     }
 
     output_enrichment<-paste0(dir, "/", "enrichment.csv")
@@ -1222,9 +1221,45 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
     g1
 }
 
+get_gene_density<-function(transcripts, bin_size=1000000){
+    ct<-transcripts
+    ct$bin <- round(ct$Start / bin_size)
+    sqldf("SELECT Chr, chr_group, genome, partition, bin, count(*) as count FROM ct
+GROUP BY Chr, chr_group, genome, partition, bin
+ORDER BY Chr, bin")
+}
+
+plot_per_partition_gene_count<-function(table, title = "Test"){
+    
+    gs<-list()
+    local_title = paste0(title, "\n Genes per 1MBp \nN: ", nrow(table) )
+    
+    t1 <- table[table$Chr != "chrUn",]
+ 
+    t1 <- get_gene_density(t1)
+    
+    ylim1 = boxplot.stats(t1$count)$stats[c(1, 5)]
+    p <-ggplot(t1,aes(partition, count)) 
+    
+
+    p <- p + geom_boxplot(aes(fill=partition)) 
+    p <- p + theme_bw()
+    p <- p + coord_cartesian(ylim = ylim1*1.05)
+    p <- p + scale_fill_brewer(palette = "Set1")
+    p <- p + theme(legend.position="none")
+    p1 <- p + facet_grid(chr_group~genome,  drop = FALSE)
+    gs[[length(gs)+1]] <- p1
+    gs[[length(gs)+1]] <- p
+    
+    g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2), top=local_title ) 
+    g1
+}
+
+
+
 args = commandArgs(trailingOnly=TRUE)
 #folder<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/TablesForExploration"
-#genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/modules/WGCNA_850/WGCNA_850_Module_15.txt"
+#genes_to_plot_path<-"/Users/ramirezr/Dropbox/JIC/expVIPMetadatas/RefSeq1.0/notebook/gene_set_files/04.modules/WGCNA_850/WGCNA_850_Module_15.txt"
 folder<-args[1]
 genes_to_plot_path<-args[2]
 name<-basename(genes_to_plot_path)
