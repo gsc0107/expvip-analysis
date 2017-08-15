@@ -23,8 +23,8 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
     canonicalTranscripts<-canonicalTranscripts[canonicalTranscripts$Gene %in% expressed_genes, ]
     canonicalTranscripts$scaled_5per_position <-   5 * ceiling(canonicalTranscripts$scaled_1per_position / 5)
     canonicalTranscripts$scaled_5per_position <- ifelse(canonicalTranscripts$scaled_5per_position == 0, 
-                                                        5, 
-                                                        canonicalTranscripts$scaled_5per_position)
+        5, 
+        canonicalTranscripts$scaled_5per_position)
     path<-paste0(dir,"/TriadMovement.rds")
     triadMovement<-readRDS(path)
     
@@ -47,15 +47,15 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
     go_slim<-read.csv(path, row.names=1)
     
     list(canonicalTranscripts=canonicalTranscripts, 
-         meanTpms=meanTpms,
-         triads=triads, 
-         triadMovement=triadMovement,
-         gene_universe=gene_universe, 
-         ontologies=ontologies,
-         id_names=id_names,
-         WGCNA=WGCNA,
-         GOSlim=go_slim
-     )
+       meanTpms=meanTpms,
+       triads=triads, 
+       triadMovement=triadMovement,
+       gene_universe=gene_universe, 
+       ontologies=ontologies,
+       id_names=id_names,
+       WGCNA=WGCNA,
+       GOSlim=go_slim
+       )
 }
 
 
@@ -73,9 +73,9 @@ prepare_hist_stats<-function(table, column="size_cds"){
     
 
     stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
-    median =  median(table[,column],2), 
-    max = local_max, 
-    n = nrow(table)
+        median =  median(table[,column],2), 
+        max = local_max, 
+        n = nrow(table)
         )
     stats_list
 }
@@ -93,82 +93,82 @@ plotHistogram<-function(table, column="size_cds"){
     p <- ggplot(table, aes_string(column))
     
     if(nrow(table) > 100){
-       table <- within(table,
-           quantile <- as.integer(
-               cut(table[,column],
-                   unique(quantile(table[,column], 
+     table <- within(table,
+         quantile <- as.integer(
+             cut(table[,column],
+                 unique(quantile(table[,column], 
                     prob=probs,
                     na.rm=TRUE, 
                     include.lowest=TRUE))
-                   )
-                ))
+                 )
+             ))
 
-           table$quantile<-ifelse(is.na(table$quantile),7,table$quantile)
-           table$quantile<-as.factor(table$quantile)
+     table$quantile<-ifelse(is.na(table$quantile),7,table$quantile)
+     table$quantile<-as.factor(table$quantile)
 
-        iq <- quantiles$value[4] - quantiles$value[2]
+     iq <- quantiles$value[4] - quantiles$value[2]
 
-        xmax <- quantiles$value[3] + (iq * 2)
-        xmin <- quantiles$value[3] - (iq * 2)
-        if(xmin < 0){
-            xmin <- 0
-        }
+     xmax <- quantiles$value[3] + (iq * 2)
+     xmin <- quantiles$value[3] - (iq * 2)
+     if(xmin < 0){
+        xmin <- 0
+    }
     
-        if(xmax > local_max){
-            xmax <- local_max + 1
-        }
-
-        p <- ggplot(table, aes_string(column, fill="quantile"))
-        p <- p + geom_vline(data=quantiles,aes(xintercept=quantiles$value) )
-        for(i in seq(1,nrow(quantiles))){
-            x_pos<-quantiles$value[i]
-            gtext <- textGrob(quantiles$quant[i], y=0.02,  gp = gpar(fontsize = 6,col = "red"))
-            p <- p + annotation_custom(gtext, xmin=x_pos, xmax=x_pos)
-        }
-        p <- p  + xlim(xmin, xmax) +
-        scale_fill_brewer(palette="Dark2")
-    
+    if(xmax > local_max){
+        xmax <- local_max + 1
     }
 
+    p <- ggplot(table, aes_string(column, fill="quantile"))
+    p <- p + geom_vline(data=quantiles,aes(xintercept=quantiles$value) )
+    for(i in seq(1,nrow(quantiles))){
+        x_pos<-quantiles$value[i]
+        gtext <- textGrob(quantiles$quant[i], y=0.02,  gp = gpar(fontsize = 6,col = "red"))
+        p <- p + annotation_custom(gtext, xmin=x_pos, xmax=x_pos)
+    }
+    p <- p  + xlim(xmin, xmax) +
+    scale_fill_brewer(palette="Dark2")
+    
+}
 
 
 
-    p <- p + geom_histogram(bins=50, position = "identity") + theme_bw() 
-    p <- p + theme(legend.position="none")
-    p <- p + ggtitle(paste0("Mean: ", round(local_mean,2), 
-        " SD:", round(local_sd,2),
-        " CV:", round(local_sd/local_mean, 2), 
-        " Median:", round(median(table[,column],2)),
-        " Max:", round(local_max,2),
-        " N:", nrow(table))) 
-    p <- p + theme(plot.title = element_text(size=6))
 
-    stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
+p <- p + geom_histogram(bins=50, position = "identity") + theme_bw() 
+p <- p + theme(legend.position="none")
+p <- p + ggtitle(paste0("Mean: ", round(local_mean,2), 
+    " SD:", round(local_sd,2),
+    " CV:", round(local_sd/local_mean, 2), 
+    " Median:", round(median(table[,column],2)),
+    " Max:", round(local_max,2),
+    " N:", nrow(table))) 
+p <- p + theme(plot.title = element_text(size=6))
+
+stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
     median =  median(table[,column],2), 
     max = local_max, 
     n = nrow(table)
-        )
-    p
+    )
+p
 }
 
 #This function gets the expected number of genes per each 5pc bin.    
 get_expected_values_per_5pc_bin<-function(gene_table, 
-                                          numberOfGenes, 
-                                          group_in_single_chromosome=FALSE){
-    
+  numberOfGenes, 
+  group_in_single_chromosome=FALSE){
+
     query<-"SELECT Chr, chr_group, genome,scaled_5per_position, count(*) as count 
-FROM
-gene_table 
-WHERE geneconf = 'HC' AND Chr != 'chrUn'
-GROUP BY  Chr, chr_group, genome, scaled_5per_position"
+    FROM
+    gene_table 
+    WHERE geneconf = 'HC' AND Chr != 'chrUn'
+    GROUP BY  Chr, chr_group, genome, scaled_5per_position"
     counts<-sqldf(query)
     if(group_in_single_chromosome){
         query<-"SELECT 'All' as Chr, 'all' as chr_group, 'all'  as genome,
-scaled_5per_position, count(*) as count 
-FROM
-gene_table 
-WHERE geneconf = 'HC' AND Chr != 'chrUn'
-GROUP BY scaled_5per_position"
+        scaled_5per_position, count(*) as count 
+        FROM
+        gene_table 
+        WHERE geneconf = 'HC' AND Chr != 'chrUn'
+        GROUP BY scaled_5per_position"
     }
     counts<-sqldf(query)
     multiplier <- numberOfGenes / sum(counts$count)
@@ -179,8 +179,8 @@ GROUP BY scaled_5per_position"
 
 
 plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
-                                             expected_all_chromosomes=NULL, 
-                                             title = "Test"){
+   expected_all_chromosomes=NULL, 
+   title = "Test"){
     chromosomes=c("1A", "1B", "1D",
         "2A", "2B", "2D",
         "3A", "3B", "3D",
@@ -194,7 +194,7 @@ plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
     local_title = paste0(title, "\n Genes per chromosome 5% bin\nN: ", nrow(table) )
     
     t1 <- table[table$Chr != "chrUn",]
- 
+
     
     expected_per_chr <- expected_per_chr[expected_per_chr$Chr != "chrUn",]
     p <-ggplot(t1,aes(scaled_5per_position)) 
@@ -206,7 +206,7 @@ plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
     if(!is.null(expected_all_chromosomes)){
         expected_all_chromosomes$expected <- expected_all_chromosomes$expected/21
         p <- p + geom_line(data=expected_all_chromosomes[, c("scaled_5per_position", "expected")],
-                       aes(x=scaled_5per_position, y=expected), color="blue", size = 0.5)
+         aes(x=scaled_5per_position, y=expected), color="blue", size = 0.5)
     }
     
     p <- p + geom_point(data=expected_per_chr, 
@@ -228,8 +228,8 @@ plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
 plot_tpms_summary<-function(tpms, experiment="850_samples", min_tpm=0.5, title="Test"){
 
     local_tpms<-subset(tpms, (subset == experiment) & 
-       ( factor != "all" & factor != "all_means" & factor != "all_mean_filter" ) &
-       value > min_tpm)
+     ( factor != "all" & factor != "all_means" & factor != "all_mean_filter" ) &
+     value > min_tpm)
 
     local_title <- paste0(title, "\n", experiment)
     
@@ -244,8 +244,8 @@ plot_tpms_summary<-function(tpms, experiment="850_samples", min_tpm=0.5, title="
 
     
     local_tpms<-subset(tpms, (subset == experiment) & 
-       ( factor == "all_mean_filter" ) &
-       value > min_tpm)
+     ( factor == "all_mean_filter" ) &
+     value > min_tpm)
     
     p2  <- ggplot(local_tpms, aes(value)) 
     p2  <- p2 + geom_histogram(bins=30 ) + theme_bw()
@@ -262,7 +262,7 @@ plot_tpms_summary<-function(tpms, experiment="850_samples", min_tpm=0.5, title="
 
     
     lay <- rbind(c(1),
-     c(2))
+       c(2))
     g1<-arrangeGrob(grobs=list(p,p2), heights=c(0.8,0.2), layout_matrix=lay, top = local_title) 
     g1
 }
@@ -317,9 +317,9 @@ plot_tpm_desc_stats<-function(tpms,subset_tpms, experiment="850_samples", min_tp
     rownames(t_global) <- NULL
     
     mytheme <- gridExtra::ttheme_default(
-     core = list(fg_params=list(cex = 0.5)),
-     colhead = list(fg_params=list(cex = 0.5)),
-     rowhead = list(fg_params=list(cex = 0.5)))
+       core = list(fg_params=list(cex = 0.5)),
+       colhead = list(fg_params=list(cex = 0.5)),
+       rowhead = list(fg_params=list(cex = 0.5)))
     
     t1 <- tableGrob(t_local, theme=mytheme)
     t2 <- tableGrob(t_global, theme=mytheme)
@@ -437,10 +437,10 @@ plot_distribution_for_factor<-function(res, unit="central_mean_distance" ,color_
 
 get_stats_title<-function(d){
     paste0("Mean: ", round(mean(d),2), 
-       " SD:", round(sd(d),2),
-       " CV:", round(sd(d)/mean(d), 2), 
-       " Median:", round(median(d),2),
-       " N:", length(d)) 
+     " SD:", round(sd(d),2),
+     " CV:", round(sd(d)/mean(d), 2), 
+     " Median:", round(median(d),2),
+     " N:", length(d)) 
 }
 
 
@@ -472,12 +472,12 @@ table_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress",
 }
 
 plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", title="test"){
- local_title <- paste0(title, "\n", experiment)
+   local_title <- paste0(title, "\n", experiment)
 
- triads <- selected_triads$triads 
- triadMovement<-selected_triads$triadMovement
+   triads <- selected_triads$triads 
+   triadMovement<-selected_triads$triadMovement
 
- all_means_filter<-triads[triads$factor=="all_mean_filter",]
+   all_means_filter<-triads[triads$factor=="all_mean_filter",]
     #print(unique(triads$factor))
     gs<-list()
     gs[[length(gs)+1]] <- plotHistogram(all_means_filter, column="value") + 
@@ -493,28 +493,28 @@ plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", 
     p <- ggplot(triadMovement, aes(total_categories)) + geom_bar() + theme_bw()
     p <- p + labs(fill="Main\ncategory", x="No. of categories") +
     ggtitle(get_stats_title(triadMovement$total_categories)) + theme(plot.title = element_text(size=6))
-   
+
     gs[[length(gs)+1]] <- p
 
     gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_max_distance")
     gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_mean_distance")
     gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="sum_mean_tpm")
     g1<-arrangeGrob(grobs=gs, ncol=2, top=local_title )
-   g1
+    g1
 }
 
 get_dominance_summary_tables_per_factor<-function(selected_triads, 
-                                                  description = "description",
-                                                  experiment="HC_CS_no_stress",
-                                                  n=NULL
-                                                 ){
+  description = "description",
+  experiment="HC_CS_no_stress",
+  n=NULL
+  ){
     triads <- selected_triads$triads
     triads <- triads[triads$dataset==experiment, ]
     
     query <- paste0("SELECT factor, " , 
-                    description , 
-                    " as description, count(*) as count FROM triads GROUP BY factor, " , 
-                    description )
+        description , 
+        " as description, count(*) as count FROM triads GROUP BY factor, " , 
+        description )
     table <- sqldf(query)
     
     casted <- dcast(table, factor  ~  description , value.var="count")
@@ -531,41 +531,29 @@ get_dominance_summary_tables_per_factor<-function(selected_triads,
         total_per_factor<-rowSums(casted)
     }
     pasted<-matrix(paste(as.matrix(round(casted,0)),
-    as.matrix(round(percentage,2)) , sep=" - "),
+        as.matrix(round(percentage,2)) , sep=" - "),
     nrow=nrow(casted), 
     dimnames=dimnames(casted))
     pasted<-matrix(paste0(pasted, "%"),
-       nrow=nrow(casted), 
-       dimnames=dimnames(casted))
+     nrow=nrow(casted), 
+     dimnames=dimnames(casted))
     pasted<-data.frame(pasted)
    # print(total_per_factor)
-    pasted$total <-total_per_factor
-    long<-melt(casted)
-    colnames(long)<-c("factor", "description", "count")
-    list(long=long, casted=casted, percentage=percentage, pasted=pasted,total=total_per_factor )
+   pasted$total <-total_per_factor
+   long<-melt(casted)
+   colnames(long)<-c("factor", "description", "count")
+   list(long=long, casted=casted, percentage=percentage, pasted=pasted,total=total_per_factor )
 }
 
 
 table_with_title<-function(title, table){
+    mytheme <- gridExtra::ttheme_default(
+       core = list(fg_params=list(cex = 0.5)),
+       colhead = list(fg_params=list(cex = 0.5)),
+       rowhead = list(fg_params=list(cex = 0.5)))
 
- mytheme <- gridExtra::ttheme_default(
-     core = list(fg_params=list(cex = 0.5)),
-     colhead = list(fg_params=list(cex = 0.5)),
-     rowhead = list(fg_params=list(cex = 0.5)))
-
- table2 <- tableGrob(table, theme=mytheme)
-
- #title2 <- textGrob(title, gp=gpar(fontsize=10))
- #table2 <- gtable_add_rows(
- #   t1, 
- #   heights = grobHeight(title2 ),
- #   pos = 0)
- #table2 <- gtable_add_grob(
- #   table2, title2, 
- #   1, 1, 1, 
- #   ncol(table2))
-
-  g1<-arrangeGrob(grobs=list(table2), ncol=1, top=title )
+    table2 <- tableGrob(table, theme=mytheme)
+    g1<-arrangeGrob(grobs=list(table2), ncol=1, top=title )
 }
 
 plot_dominance_summary_tables<-function(selected_triads, 
@@ -575,7 +563,6 @@ plot_dominance_summary_tables<-function(selected_triads,
     local_title <- paste0(title, "\n", experiment)
     
     triads <- selected_triads$triads 
-    #triadMovement<-selected_triads$triadMovement
     
     expected_triads_desc<-expected_desc$long
     total_genes<-sum(expected_triads_desc$count)
@@ -616,10 +603,10 @@ plot_dominance_summary_tables<-function(selected_triads,
 }
 
 get_goseq_enrichment<-function(geneInformation, genes_to_plot, 
-   name="Random Samples",
-   dataset="HC_CS_no_stress", 
-   ontology="GO"
-   ){
+ name="Random Samples",
+ dataset="HC_CS_no_stress", 
+ ontology="GO"
+ ){
     id_names <- geneInformation$id_names
     universe<-geneInformation$gene_universe 
     universe<-universe[universe$dataset==dataset,]
@@ -705,33 +692,33 @@ get_goseq_enrichment<-function(geneInformation, genes_to_plot,
     
     slim<-geneInformation$GOSlim
     sig.GO <- sqldf("SELECT category, 
-over_represented_pvalue,
-under_represented_pvalue,
-numDEInCat,
-numInCat,
-ontology,
-over_rep_padj,
-under_rep_padj,
-description,
-type,
-p_adjust,
-percentage,  
-GROUP_CONCAT(DISTINCT slim_acc) as slim_acc, 
-GROUP_CONCAT(DISTINCT slim_term_type) as slim_term_type,
-GROUP_CONCAT(DISTINCT slim_name) as slim_name 
-FROM ret LEFT JOIN slim ON category = acc 
-GROUP BY category, 
-over_represented_pvalue,
-under_represented_pvalue,
-numDEInCat,
-numInCat,
-ontology,
-over_rep_padj,
-under_rep_padj,
-description,
-type,
-p_adjust,
-percentage")
+        over_represented_pvalue,
+        under_represented_pvalue,
+        numDEInCat,
+        numInCat,
+        ontology,
+        over_rep_padj,
+        under_rep_padj,
+        description,
+        type,
+        p_adjust,
+        percentage,  
+        GROUP_CONCAT(DISTINCT slim_acc) as slim_acc, 
+        GROUP_CONCAT(DISTINCT slim_term_type) as slim_term_type,
+        GROUP_CONCAT(DISTINCT slim_name) as slim_name 
+        FROM ret LEFT JOIN slim ON category = acc 
+        GROUP BY category, 
+        over_represented_pvalue,
+        under_represented_pvalue,
+        numDEInCat,
+        numInCat,
+        ontology,
+        over_rep_padj,
+        under_rep_padj,
+        description,
+        type,
+        p_adjust,
+        percentage")
     
     
     sig.GO
@@ -749,7 +736,7 @@ plot_enrichment<-function(enrichment,experiment="HC_CS_no_stress", title="test" 
             coord_flip() +
             geom_col(fill="#a8ddb5") + labs(y="", x="percentage", title=ont) +  theme_bw() + #ylim(0,100) + 
             theme(axis.text.x = element_text(angle = 0, hjust = 1, size=4),
-             axis.text.y = element_text(angle = 35, hjust = 1, size=4))  +
+               axis.text.y = element_text(angle = 35, hjust = 1, size=4))  +
             geom_text(aes(label=numDEInCat), position=position_dodge(width=0.9), size=3)
         }
     }
@@ -791,55 +778,55 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         tmp_df$title  <- name
         if(is.null(summary_df)){
             summary_df <- tmp_df
-        }else{
-            summary_df <- rbind(summary_df, tmp_df) 
-        }
-            
-    }
-    plots[[length(plots)+1]] <- arrangeGrob(grobs=gs, ncol=2 , top = paste0(name, "\n Gene properties"))
-    plots[[length(plots)+1]] <- plot_per_chromosome_5pc_bins_facet(local_table,
-       expected_per_chr=expected_per_chr, 
-       title=name)
-    
-    plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
-    for(s in unique(geneInformation$meanTpms$subset)){
-        plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
-        plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
-        plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
-    }
-    
-    plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
-
-
-    triada_movment_df<-NULL
-
-
-    for(s in unique(geneInformation$triads$dataset)){
-        for(i in c(1,2,3) ){
-            local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
-            if(nrow(local_triads$triads)== 0){
-                next
+            }else{
+                summary_df <- rbind(summary_df, tmp_df) 
             }
-            name_tmp <-name
-            name <- paste0(name, " Min genes in triad: ", i )
-            plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
             
+        }
+        plots[[length(plots)+1]] <- arrangeGrob(grobs=gs, ncol=2 , top = paste0(name, "\n Gene properties"))
+        plots[[length(plots)+1]] <- plot_per_chromosome_5pc_bins_facet(local_table,
+         expected_per_chr=expected_per_chr, 
+         title=name)
+
+        plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
+        for(s in unique(geneInformation$meanTpms$subset)){
+            plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
+            plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
+            plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
+        }
+
+        plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
+
+
+        triada_movment_df<-NULL
+
+
+        for(s in unique(geneInformation$triads$dataset)){
+            for(i in c(1,2,3) ){
+                local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
+                if(nrow(local_triads$triads)== 0){
+                    next
+                }
+                name_tmp <-name
+                name <- paste0(name, " Min genes in triad: ", i )
+                plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
+
             #tmp_df<- table_dominance_summary(local_triads, experiment=s, title=name)            
             #summary_df <- rbind(summary_df, tmp_df)
 
 
             observed_desc    <-get_dominance_summary_tables_per_factor(local_triads, experiment=s)
             observed_gen_desc<-get_dominance_summary_tables_per_factor(local_triads,
-               description="general_description",
-               experiment=s)
+             description="general_description",
+             experiment=s)
 
             expected_desc    <-get_dominance_summary_tables_per_factor(geneInformation, 
-                                                                       experiment=s, 
-                                                                       n=observed_desc$total)
+             experiment=s, 
+             n=observed_desc$total)
             expected_gen_desc<-get_dominance_summary_tables_per_factor(geneInformation,
-                                                                       description="general_description",
-                                                                       experiment=s,
-                                                                       n=observed_gen_desc$total)
+             description="general_description",
+             experiment=s,
+             n=observed_gen_desc$total)
 
 
             
@@ -900,8 +887,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                 )
 
             plots[[length(plots)+1]] <- table_with_title(paste(name, s, "Observed",sep="\n"),
-               observed_gen_desc$pasted
-               )
+             observed_gen_desc$pasted
+             )
             plots[[length(plots)+1]] <- table_with_title(paste(name, s, "Expected",sep="\n"),
                 expected_gen_desc$pasted
                 )
@@ -950,7 +937,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
 
     g1<-marrangeGrob(plots, ncol=1, nrow=1, top="", bottom = quote(paste("page", g, "of",
-       pages)))
+     pages)))
 
     ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
     g1
@@ -960,21 +947,21 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
 
 get_counts_values_per_5pc_bin<-function(gene_table,group_in_single_chromosome=FALSE){
-    
+
     query<-"SELECT Chr, chr_group, genome,scaled_5per_position, count(*) as count 
-FROM
-gene_table 
-WHERE Chr != 'chrUn'
-GROUP BY  Chr, chr_group, genome, scaled_5per_position"
+    FROM
+    gene_table 
+    WHERE Chr != 'chrUn'
+    GROUP BY  Chr, chr_group, genome, scaled_5per_position"
     
     counts<-sqldf(query)
     if(group_in_single_chromosome){
         query<-"SELECT 'All' as Chr, 'all' as chr_group, 'all'  as genome,
-scaled_5per_position, count(*)/21 as count 
-FROM
-gene_table 
-WHERE Chr != 'chrUn'
-GROUP BY scaled_5per_position"
+        scaled_5per_position, count(*)/21 as count 
+        FROM
+        gene_table 
+        WHERE Chr != 'chrUn'
+        GROUP BY scaled_5per_position"
     }
     counts<-sqldf(query)
 
@@ -982,8 +969,8 @@ GROUP BY scaled_5per_position"
 }
 
 plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
-                                             expected_all_chromosomes=NULL, 
-                                             title = "Test"){
+   expected_all_chromosomes=NULL, 
+   title = "Test"){
     chromosomes=c("1A", "1B", "1D",
         "2A", "2B", "2D",
         "3A", "3B", "3D",
@@ -1011,9 +998,9 @@ plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
     
     
     p <- p + geom_line(data=expected_per_chr[, c("scaled_5per_position", "expected", "Chr")],
-                       aes(x=scaled_5per_position, y=expected,group=Chr 
-                        ),
-                           color='black', size=1, alpha=0.1 ) 
+     aes(x=scaled_5per_position, y=expected,group=Chr 
+        ),
+     color='black', size=1, alpha=0.1 ) 
     
     
     p <- p + ylab(" count ") + xlab("")
@@ -1024,8 +1011,8 @@ plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
         expected_all_chromosomes$expected <- expected_all_chromosomes$expected/21
         exp_norm <-expected_all_chromosomes[, c("scaled_5per_position", "expected", "Chr")]
         p <- p + geom_line(data=exp_norm,
-                       aes(x=scaled_5per_position, y=expected), 
-                           color="blue", alpha=0.5)
+         aes(x=scaled_5per_position, y=expected), 
+         color="blue", alpha=0.5)
     }
     p  <- p + theme_bw()
     p1 <- p + geom_line(color="red", alpha=0.3) 
@@ -1041,10 +1028,10 @@ plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
 }
 
 plotExpressedTissuesAcrossChromosomes<-function(geneInformation, 
-                                                genes_to_plot, 
-                                                subset="850_samples", 
-                                                factor="all_mean_filter", 
-                                                title = "Test"){
+    genes_to_plot, 
+    subset="850_samples", 
+    factor="all_mean_filter", 
+    title = "Test"){
     #print(head(genes_to_plot))
     tpms<-geneInformation$meanTpms
     tpms<-tpms[tpms$factor==factor & tpms$subset==subset,]
@@ -1056,49 +1043,49 @@ plotExpressedTissuesAcrossChromosomes<-function(geneInformation,
     #print(max(tpms$samples))
     
     expected_tissues <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE geneconf = 'HC' AND Chr != 'chrUn'
-GROUP BY scaled_5per_position")
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE geneconf = 'HC' AND Chr != 'chrUn'
+        GROUP BY scaled_5per_position")
     
     expected_tissues_mean <- sqldf("SELECT 
-Chr,
-chr_group, 
-genome, 
-scaled_5per_position, 
-AVG(value) as meanTPM, 
-AVG(samples) as noSamples, 
-count(*) as count
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE geneconf = 'HC' AND Chr != 'chrUn'
-GROUP BY Chr, scaled_5per_position, chr_group, genome
-ORDER BY Chr, chr_group, genome, scaled_5per_position ")
+        Chr,
+        chr_group, 
+        genome, 
+        scaled_5per_position, 
+        AVG(value) as meanTPM, 
+        AVG(samples) as noSamples, 
+        count(*) as count
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE geneconf = 'HC' AND Chr != 'chrUn'
+        GROUP BY Chr, scaled_5per_position, chr_group, genome
+        ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     
     
     gs<-list()
     local_title = paste0(title, "\n Average expressed per 5% bin\nN: ", nrow(table) )
     
     #t <- table[table$Chr != "chrUn",]
-      t1 <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
-GROUP BY scaled_5per_position")
+    t1 <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
+        GROUP BY scaled_5per_position")
     
     t2 <- sqldf("SELECT 
-Chr,
-chr_group, 
-genome, 
-scaled_5per_position, 
-AVG(value) as meanTPM, 
-AVG(samples) as noSamples, 
-count(*) as count
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
-GROUP BY Chr, scaled_5per_position, chr_group, genome
-ORDER BY Chr, chr_group, genome, scaled_5per_position ")
+        Chr,
+        chr_group, 
+        genome, 
+        scaled_5per_position, 
+        AVG(value) as meanTPM, 
+        AVG(samples) as noSamples, 
+        count(*) as count
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
+        GROUP BY Chr, scaled_5per_position, chr_group, genome
+        ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     
     #print("-.-")
     t1$Chr<-"All"
@@ -1110,38 +1097,38 @@ ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     p <-ggplot(expected_tissues_mean,aes(x=scaled_5per_position, y=noSamples, group=Chr)) 
     
     samples_reduced<-expected_tissues_mean[, c("scaled_5per_position", "noSamples", "Chr")]
-   
+
     p <- p + geom_line(data=samples_reduced,
-                       aes(x=scaled_5per_position, y=noSamples,group=Chr 
-                        ),color='black', size=1, alpha=0.1 ) 
+     aes(x=scaled_5per_position, y=noSamples,group=Chr 
+        ),color='black', size=1, alpha=0.1 ) 
     p <- p + ylab("No of tissues") + xlab("")
     if(!is.null(expected_tissues)){
-    #    print(head(expected_tissues))
+        #print(head(expected_tissues))
         exp_norm <-expected_tissues[, c("scaled_5per_position", "noSamples")]
         exp_norm$Chr<-"All"
         p <- p + geom_line(data=exp_norm,
-                       aes(x=scaled_5per_position, y=noSamples), 
-                           color="blue", alpha=0.5)
+         aes(x=scaled_5per_position, y=noSamples), 
+         color="blue", alpha=0.5)
     }
     p  <- p + theme_bw()
     p1 <- p + geom_line(color="red", alpha=0.3) 
-    
+
     p1 <- p1 + geom_point(data=t2, aes(x=scaled_5per_position, y=noSamples), color="red")
     p  <-  p + geom_point(data=t1, aes(x=scaled_5per_position, y=noSamples), color="blue")
-    
+
     gs[[length(gs)+1]] <- p1 + facet_grid(chr_group~genome,  drop = TRUE)
     gs[[length(gs)+1]] <- p  
-    
+
     g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2),  top=local_title ) 
     g1
 }
 
 
 plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation, 
-                                                genes_to_plot, 
-                                                subset="850_samples", 
-                                                factor="all_mean_filter", 
-                                                title = "Test"){
+    genes_to_plot, 
+    subset="850_samples", 
+    factor="all_mean_filter", 
+    title = "Test"){
     #print(head(genes_to_plot))
     tpms<-geneInformation$meanTpms
     tpms<-tpms[tpms$factor==factor & tpms$subset==subset,]
@@ -1153,49 +1140,49 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
     #print(max(tpms$samples))
     
     expected_tissues <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE geneconf = 'HC' AND Chr != 'chrUn'
-GROUP BY scaled_5per_position")
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE geneconf = 'HC' AND Chr != 'chrUn'
+        GROUP BY scaled_5per_position")
     
     expected_tissues_mean <- sqldf("SELECT 
-Chr,
-chr_group, 
-genome, 
-scaled_5per_position, 
-AVG(value) as meanTPM, 
-AVG(samples) as noSamples, 
-count(*) as count
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE geneconf = 'HC' AND Chr != 'chrUn'
-GROUP BY Chr, scaled_5per_position, chr_group, genome
-ORDER BY Chr, chr_group, genome, scaled_5per_position ")
+        Chr,
+        chr_group, 
+        genome, 
+        scaled_5per_position, 
+        AVG(value) as meanTPM, 
+        AVG(samples) as noSamples, 
+        count(*) as count
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE geneconf = 'HC' AND Chr != 'chrUn'
+        GROUP BY Chr, scaled_5per_position, chr_group, genome
+        ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     
     
     gs<-list()
     local_title = paste0(title, "\n Mean TPM of expressed tissues expressed per 5% bin\nN: ", nrow(table) )
     
     #t <- table[table$Chr != "chrUn",]
-      t1 <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
-GROUP BY scaled_5per_position")
+    t1 <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
+        GROUP BY scaled_5per_position")
     
     t2 <- sqldf("SELECT 
-Chr,
-chr_group, 
-genome, 
-scaled_5per_position, 
-AVG(value) as meanTPM, 
-AVG(samples) as noSamples, 
-count(*) as count
-FROM tpms 
-JOIN transcripts ON tpms.gene = transcripts.Gene 
-WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
-GROUP BY Chr, scaled_5per_position, chr_group, genome
-ORDER BY Chr, chr_group, genome, scaled_5per_position ")
+        Chr,
+        chr_group, 
+        genome, 
+        scaled_5per_position, 
+        AVG(value) as meanTPM, 
+        AVG(samples) as noSamples, 
+        count(*) as count
+        FROM tpms 
+        JOIN transcripts ON tpms.gene = transcripts.Gene 
+        WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
+        GROUP BY Chr, scaled_5per_position, chr_group, genome
+        ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     
     #print("-.-")
     t1$Chr<-"All"
@@ -1207,28 +1194,28 @@ ORDER BY Chr, chr_group, genome, scaled_5per_position ")
     p <-ggplot(expected_tissues_mean,aes(x=scaled_5per_position, y=meanTPM, group=Chr)) 
     
     samples_reduced<-expected_tissues_mean[, c("scaled_5per_position", "meanTPM", "Chr")]
-   
+
     p <- p + geom_line(data=samples_reduced,
-                       aes(x=scaled_5per_position, y=meanTPM,group=Chr 
-                        ),color='black', size=1, alpha=0.1 ) 
+     aes(x=scaled_5per_position, y=meanTPM,group=Chr 
+        ),color='black', size=1, alpha=0.1 ) 
     p <- p + ylab("No of tissues") + xlab("")
     if(!is.null(expected_tissues)){
-    #    print(head(expected_tissues))
+        #print(head(expected_tissues))
         exp_norm <-expected_tissues[, c("scaled_5per_position", "meanTPM")]
         exp_norm$Chr<-"All"
         p <- p + geom_line(data=exp_norm,
-                       aes(x=scaled_5per_position, y=meanTPM), 
-                           color="blue", alpha=0.5)
+         aes(x=scaled_5per_position, y=meanTPM), 
+         color="blue", alpha=0.5)
     }
     p  <- p + theme_bw() + scale_y_log10()
     p1 <- p + geom_line(color="red", alpha=0.3) 
-    
+
     p1 <- p1 + geom_point(data=t2, aes(x=scaled_5per_position, y=meanTPM), color="red")
     p  <-  p + geom_point(data=t1, aes(x=scaled_5per_position, y=meanTPM), color="blue")
-    
+
     gs[[length(gs)+1]] <- p1 + facet_grid(chr_group~genome,  drop = TRUE)
     gs[[length(gs)+1]] <- p  
-    
+
     g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2),  top=local_title ) 
     g1
 }
