@@ -199,35 +199,25 @@ get_expected_values_per_5pc_bin<-function(gene_table,
 
 
 
-plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr, 
+plot_per_chromosome_5pc_bins_facet<-function(table,expected_per_chr,
+                                             expected_all_chromosomes=NULL, 
                                              title = "Test"){
-    chromosomes=c("1A", "1B", "1D",
-        "2A", "2B", "2D",
-        "3A", "3B", "3D",
-        "4A", "4B", "4D",
-        "5A", "5B", "5D",
-        "6A", "6B", "6D",
-
-        "7A", "7B", "7D")
     
     gs<-list()
     local_title = paste0(title, "\n Genes per chromosome 5% bin\nN: ", nrow(table) )
     
     t1 <- table[table$Chr != "chrUn",]
- 
-    
     expected_per_chr <- expected_per_chr[expected_per_chr$Chr != "chrUn",]
+    
     p <-ggplot(t1,aes(as.factor(scaled_5per_position))) 
-
     p <- p + geom_bar(aes(fill=partition)) 
     p <- p + theme_bw()
     p <- p + facet_grid(chr_group~genome,  drop = FALSE)
     p <- p + ylab(" count ") + xlab("")
     p <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1))
-    
+    p <- p + scale_fill_brewer(palette = "Set1")
     p <- p + geom_point(data=expected_per_chr, 
         aes(x=as.factor(scaled_5per_position), y=expected), color="red", size = 0.5)
-
     gs[[length(gs)+1]] <- p
     
     p <-ggplot(table,aes(Chr, fill=geneconf))  + geom_bar() + theme_bw()
