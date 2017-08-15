@@ -60,8 +60,27 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
 
 
 
+prepare_hist_stats<-function(table, column="size_cds"){
+    table<-table[table[,column]>0,]
+    probs <- c( 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)
+    quantiles <- data.frame(quantile(table[,column], prob=probs,na.rm=TRUE, include.lowest=TRUE), stringsAsFactors=FALSE)
+    quantiles$quant<-rownames(quantiles)
+    colnames(quantiles)<-c("value", "quant")
+    values<-quantiles$values
+    local_mean<-mean(table[,column])
+    local_sd<-sd(table[,column])
+    local_max <-  max(table[,column])
+    
 
-plotHistogram<-function(table, column="size_cds", continuation = function(values){return values} ){
+    stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
+    median =  median(table[,column],2), 
+    max = local_max, 
+    n = nrow(table)
+        )
+    stats_list
+}
+
+plotHistogram<-function(table, column="size_cds"){
     table<-table[table[,column]>0,]
     probs <- c( 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)
     quantiles <- data.frame(quantile(table[,column], prob=probs,na.rm=TRUE, include.lowest=TRUE), stringsAsFactors=FALSE)
@@ -123,6 +142,12 @@ plotHistogram<-function(table, column="size_cds", continuation = function(values
         " Max:", round(local_max,2),
         " N:", nrow(table))) 
     p <- p + theme(plot.title = element_text(size=6))
+
+    stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
+    median =  median(table[,column],2), 
+    max = local_max, 
+    n = nrow(table)
+        )
     p
 }
 
@@ -419,6 +444,33 @@ get_stats_title<-function(d){
 }
 
 
+table_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", title="test"){
+    local_title <- paste0(title, "\n", experiment)
+    triads <- selected_triads$triads 
+    triadMovement<-selected_triads$triadMovement
+    all_means_filter<-triads[triads$factor=="all_mean_filter",]
+    
+    df  <- prepare_hist_stats(all_means_filter, column="value") 
+    df$value_type <- "All mean filter TPM for genes in triad"
+
+
+    tmp<- prepare_hist_stats(triadMovement, column="central_max_distance")
+    tmp$value_type <- "central_max_distance"
+    df<-rbind(df,tmp)
+
+    tmp<- prepare_hist_stats(triadMovement, column="central_mean_distance")
+    tmp$value_type <- "central_mean_distance"
+    df<-rbind(df,tmp)
+    
+    tmp<- prepare_hist_stats(triadMovement, column="sum_mean_tpm")
+    tmp$value_type <- "sum_mean_tpm"
+    df<-rbind(df,tmp)
+
+    df$dataset<-experiment
+    df$title <- title
+    df
+}
+
 plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", title="test"){
  local_title <- paste0(title, "\n", experiment)
 
@@ -448,7 +500,7 @@ plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", 
     gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="central_mean_distance")
     gs[[length(gs)+1]] <- plotHistogram(triadMovement, column="sum_mean_tpm")
     g1<-arrangeGrob(grobs=gs, ncol=2, top=local_title )
-    g1
+   g1
 }
 
 get_dominance_summary_tables_per_factor<-function(selected_triads, 
@@ -708,6 +760,9 @@ plot_enrichment<-function(enrichment,experiment="HC_CS_no_stress", title="test" 
 }
 
 plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples" , output_path="./Test"){
+
+    summary_df <- NULL
+
     local_table<-geneInformation$canonicalTranscripts
     local_table<-local_table[local_table$Gene %in% genes_to_plot,]
     
@@ -730,6 +785,16 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     for(plot in stats_to_plot){
         p<-plotHistogram(local_table,column=plot)
         gs[[length(gs)+1]] <- p
+        tmp_df <- prepare_hist_stats(local_table, column=plot)
+        tmp_df$value_type <- plot
+        tmp_df$dataset<- "Gene summary"
+        tmp_df$title  <- name
+        if(is.null(summary_df)){
+            summary_df <- tmp_df
+        }else{
+            summary_df <- rbind(summary_df, tmp_df) 
+        }
+            
     }
     plots[[length(plots)+1]] <- arrangeGrob(grobs=gs, ncol=2 , top = paste0(name, "\n Gene properties"))
     plots[[length(plots)+1]] <- plot_per_chromosome_5pc_bins_facet(local_table,
@@ -747,6 +812,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
 
     triada_movment_df<-NULL
+
+
     for(s in unique(geneInformation$triads$dataset)){
         for(i in c(1,2,3) ){
             local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
@@ -757,6 +824,10 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
             name <- paste0(name, " Min genes in triad: ", i )
             plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
             
+            #tmp_df<- table_dominance_summary(local_triads, experiment=s, title=name)            
+            #summary_df <- rbind(summary_df, tmp_df)
+
+
             observed_desc    <-get_dominance_summary_tables_per_factor(local_triads, experiment=s)
             observed_gen_desc<-get_dominance_summary_tables_per_factor(local_triads,
                description="general_description",
@@ -841,9 +912,13 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         
     }
     
+    output_summary<-paste0(dir, "/", "summary_from_histograms.csv")
+    write.csv(summary_df, file=output_summary) 
 
     output_enrichment<-paste0(dir, "/", "triad_movment_summary.csv")
     write.csv(triada_movment_df, file=output_enrichment) 
+
+    
 
 
     all_enrichments <- NULL
