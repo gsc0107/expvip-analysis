@@ -447,29 +447,33 @@ get_stats_title<-function(d){
 
 
 table_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", title="test"){
-    local_title <- paste0(title, "\n", experiment)
     triads <- selected_triads$triads 
     triadMovement<-selected_triads$triadMovement
     all_means_filter<-triads[triads$factor=="all_mean_filter",]
     
     df  <- prepare_hist_stats(all_means_filter, column="value") 
     df$value_type <- "All mean filter TPM for genes in triad"
-
-
+    df$dataset<-experiment
+    df$title <- title
+    
     tmp<- prepare_hist_stats(triadMovement, column="central_max_distance")
     tmp$value_type <- "central_max_distance"
+    tmp$dataset<-experiment
+    tmp$title <- title
     df<-rbind(df,tmp)
 
     tmp<- prepare_hist_stats(triadMovement, column="central_mean_distance")
     tmp$value_type <- "central_mean_distance"
+    tmp$dataset<-experiment
+    tmp$title <- title
     df<-rbind(df,tmp)
     
     tmp<- prepare_hist_stats(triadMovement, column="sum_mean_tpm")
     tmp$value_type <- "sum_mean_tpm"
+    tmp$dataset<-experiment
+    tmp$title <- title
     df<-rbind(df,tmp)
 
-    df$dataset<-experiment
-    df$title <- title
     df
 }
 
@@ -818,8 +822,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
             name <- paste0(name, " Min genes in triad: ", i )
             plots[[length(plots)+1]] <- plot_dominance_summary(local_triads, experiment=s, title=name)
 
-            #tmp_df<- table_dominance_summary(local_triads, experiment=s, title=name)            
-            #summary_df <- rbind(summary_df, tmp_df)
+            tmp_df<- table_dominance_summary(local_triads, experiment=s, title=name)            
+            summary_df <- rbind(summary_df, tmp_df)
 
 
             observed_desc    <-get_dominance_summary_tables_per_factor(local_triads, experiment=s)
