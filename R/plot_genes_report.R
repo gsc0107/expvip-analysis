@@ -541,13 +541,18 @@ get_dominance_summary_tables_per_factor<-function(selected_triads,
     nrow=nrow(casted), 
     dimnames=dimnames(casted))
     pasted<-matrix(paste0(pasted, "%"),
-     nrow=nrow(casted), 
-     dimnames=dimnames(casted))
+    nrow=nrow(casted), 
+    dimnames=dimnames(casted))
     pasted<-data.frame(pasted)
-   # print(total_per_factor)
-   pasted$total <-total_per_factor
-   long<-melt(casted)
-   colnames(long)<-c("factor", "description", "count")
+    pasted$total <-total_per_factor
+    long<-melt(casted)
+    colnames(long)<-c("factor", "description", "count")
+    percentage_long<-melt(percentage)
+    colnames(percentage_long)<-c("factor", "description", "percentage")
+    long<-merge(x=long,
+                y=percentage_long, 
+                by.x=c("factor","description"), 
+                by.y=c("factor","description"))
    list(long=long, casted=casted, percentage=percentage, pasted=pasted,total=total_per_factor )
 }
 
