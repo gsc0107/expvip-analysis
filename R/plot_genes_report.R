@@ -66,6 +66,16 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
     
     path<-paste0(dir, "/ObservedGOTermsWithSlim.csv")
     go_slim<-read.csv(path, row.names=1)
+
+    path<-paste0(dir, "/motifs.rds")
+    motifs <- readRDS(path)
+
+    path<-paste0(dir, "/SegmentalNonTETriads.csv")
+    allTriads<-read.csv(path, stringsAsFactors=F)
+    only_genes<-allTriads[,c("group_id","A", "B", "D")]
+    allTriads<-melt(only_genes, id.vars<-c("group_id"),
+        variable.name = "chr_group",
+        value.name ="gene")
     
     list(canonicalTranscripts=canonicalTranscripts, 
        meanTpms=meanTpms,
@@ -75,7 +85,9 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
        ontologies=ontologies,
        id_names=id_names,
        WGCNA=WGCNA,
-       GOSlim=go_slim
+       GOSlim=go_slim,
+       motifs=motifs,
+       allTriads=allTriads
        )
 }
 
