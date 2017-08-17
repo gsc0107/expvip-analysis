@@ -31,6 +31,7 @@ loadGeneInformation<-function(dir="../TablesForExploration"){
     
     partition_percentages<-round(100*partition/partition$Length)
     partition_percentages$Chr <- rownames(partition_percentages)
+    partition$Chr <- rownames(partition)
     ct<-canonicalTranscripts
     ct_with_partition<-sqldf('SELECT ct.*, CASE 
 WHEN scaled_1per_position < R1_R2a THEN "R1"
@@ -38,8 +39,8 @@ WHEN scaled_1per_position < R2a_C  THEN "R2A"
 WHEN scaled_1per_position < C_R2b  THEN "C"
 WHEN scaled_1per_position < R2b_R3  THEN "R2B"
 ELSE "R3" END as partition
-FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   ')
     
+FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   ')
 
     x<-  as.factor(ct_with_partition$partition)
     x <- factor(x,levels(x)[c(2,3,1,4,5)])
@@ -67,15 +68,15 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
     path<-paste0(dir, "/ObservedGOTermsWithSlim.csv")
     go_slim<-read.csv(path, row.names=1)
 
-    path<-paste0(dir, "/motifs.rds")
-    motifs <- readRDS(path)
+    #path<-paste0(dir, "/motifs.rds")
+    #motifs <- readRDS(path)
 
-    path<-paste0(dir, "/SegmentalNonTETriads.csv")
-    allTriads<-read.csv(path, stringsAsFactors=F)
-    only_genes<-allTriads[,c("group_id","A", "B", "D")]
-    allTriads<-melt(only_genes, id.vars<-c("group_id"),
-        variable.name = "chr_group",
-        value.name ="gene")
+    #path<-paste0(dir, "/SegmentalNonTETriads.csv")
+    #allTriads<-read.csv(path, stringsAsFactors=F)
+    #only_genes<-allTriads[,c("group_id","A", "B", "D")]
+    #allTriads<-melt(only_genes, id.vars<-c("group_id"),
+    #    variable.name = "chr_group",
+    #    value.name ="gene")
     
     list(canonicalTranscripts=canonicalTranscripts, 
        meanTpms=meanTpms,
@@ -86,8 +87,10 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
        id_names=id_names,
        WGCNA=WGCNA,
        GOSlim=go_slim,
-       motifs=motifs,
-       allTriads=allTriads
+       partition=partition
+       
+       #motifs=motifs,
+       #allTriads=allTriads
        )
 }
 
@@ -814,9 +817,10 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         expected_per_chr=expected_per_chr, 
         title=name)
 
-    plots[[length(plots)+1]] <- plot_per_partition_gene_count(local_table, title=name)
-    gene_density<-get_gene_density(local_table)
+    gene_density<-get_gene_density(genes_to_plot, geneInformation)
     output_gene_density<-paste0(dir, "/", "gene_density_per_region.csv")
+    plots[[length(plots)+1]] <- plot_per_partition_gene_count(local_table, gene_density, title=name)
+    
     write.csv(gene_density, file=output_gene_density) 
 
     plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
@@ -1242,22 +1246,64 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
     g1
 }
 
-get_gene_density<-function(transcripts, bin_size=1000000){
-    ct<-transcripts
-    ct$bin <- round(ct$Start / bin_size)
-    sqldf("SELECT Chr, chr_group, genome, partition, bin, count(*) as count FROM ct
-GROUP BY Chr, chr_group, genome, partition, bin
-ORDER BY Chr, bin")
+get_empty_bins_for_partitions<-function(geneInformation){
+    partition<-geneInformation$partition
+    print(partition)
+    chrs<-NULL
+    for(i in rownames(partition)){
+        chrom<-partition[i,"Chr"]
+        length<-partition[i,"Length"]
+        Chr<-rep(chrom, length+1)
+        bin<-0:length+1
+        count<-rep(0,length+1)
+        chr_group<-rep(substr(chrom, 4,4),length+1)
+        genome<-rep(substr(chrom, 5,5),length+1)
+        l_partition<-rep(0,length+1)
+        print(head(partition))
+        df<-data.frame(Chr,chr_group, genome, partition=l_partition, bin, count)
+        if(is.null(chrs)){
+            chrs<-df
+        }else{
+            chrs<-rbind(chrs, df)
+        }
+    }
+    
+    chrs_with_partition<-sqldf('SELECT chrs.Chr, chrs.chr_group, genome,  CASE 
+WHEN chrs.bin < R1_R2a THEN "R1"
+WHEN chrs.bin < R2a_C  THEN "R2A"
+WHEN chrs.bin < C_R2b  THEN "C"
+WHEN chrs.bin < R2b_R3  THEN "R2B"
+ELSE "R3" END as new_partition, chrs.bin,
+count
+FROM chrs LEFT JOIN partition ON partition.Chr = chrs.Chr   ')
+    c("Chr", "chr_group", "genome","partition","bin", "count")->colnames(chrs_with_partition)
+    chrs_with_partition
 }
 
-plot_per_partition_gene_count<-function(table, title = "Test"){
+get_gene_density<-function(genes_to_plot, geneInformation, bin_size=1000000){
+    local_table<-geneInformation$canonicalTranscripts
+    local_table<-local_table[local_table$Gene %in% genes_to_plot,]
+    
+    ct<-local_table
+    ct$bin <- round(ct$Start / bin_size)
+    density <- sqldf("SELECT Chr, chr_group, genome, partition, bin, count(*) as count FROM ct
+GROUP BY Chr, chr_group, genome, partition, bin
+ORDER BY Chr, bin")
+    density<-rbind(density, get_empty_bins_for_partitions(geneInformation))
+    sqldf("SELECT  Chr, chr_group, genome, partition, bin, sum(count) as count
+FROM density
+GROUP BY Chr, chr_group, genome, partition, bin
+ORDER BY Chr, bin")
+    
+    
+}
+
+plot_per_partition_gene_count<-function(table, gene_density, title = "Test"){
     
     gs<-list()
     local_title = paste0(title, "\n Genes per 1MBp \nN: ", nrow(table) )
     
-    t1 <- table[table$Chr != "chrUn",]
- 
-    t1 <- get_gene_density(t1)
+    t1 <- gene_density[gene_density$Chr != "chrUn",]
     
     ylim1 = boxplot.stats(t1$count)$stats[c(1, 5)]
     p <-ggplot(t1,aes(partition, count)) 
