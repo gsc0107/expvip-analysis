@@ -88,7 +88,7 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
        WGCNA=WGCNA,
        GOSlim=go_slim,
        partition=partition
-       
+
        #motifs=motifs,
        #allTriads=allTriads
        )
@@ -1248,7 +1248,7 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
 
 get_empty_bins_for_partitions<-function(geneInformation){
     partition<-geneInformation$partition
-    print(partition)
+    #print(partition)
     chrs<-NULL
     for(i in rownames(partition)){
         chrom<-partition[i,"Chr"]
@@ -1259,7 +1259,7 @@ get_empty_bins_for_partitions<-function(geneInformation){
         chr_group<-rep(substr(chrom, 4,4),length+1)
         genome<-rep(substr(chrom, 5,5),length+1)
         l_partition<-rep(0,length+1)
-        print(head(partition))
+        #print(head(partition))
         df<-data.frame(Chr,chr_group, genome, partition=l_partition, bin, count)
         if(is.null(chrs)){
             chrs<-df
