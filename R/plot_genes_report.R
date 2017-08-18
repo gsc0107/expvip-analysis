@@ -68,15 +68,15 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
     path<-paste0(dir, "/ObservedGOTermsWithSlim.csv")
     go_slim<-read.csv(path, row.names=1)
 
-    #path<-paste0(dir, "/motifs.rds")
-    #motifs <- readRDS(path)
+    path<-paste0(dir, "/motifs.rds")
+    motifs <- readRDS(path)
 
-    #path<-paste0(dir, "/SegmentalNonTETriads.csv")
-    #allTriads<-read.csv(path, stringsAsFactors=F)
-    #only_genes<-allTriads[,c("group_id","A", "B", "D")]
-    #allTriads<-melt(only_genes, id.vars<-c("group_id"),
-    #    variable.name = "chr_group",
-    #    value.name ="gene")
+    path<-paste0(dir, "/SegmentalTriads.csv")
+    allTriads<-read.csv(path, stringsAsFactors=F)
+    only_genes<-allTriads[,c("group_id","A", "B", "D")]
+    allTriads<-melt(only_genes, id.vars<-c("group_id"),
+        variable.name = "chr_group",
+        value.name ="gene")
     
     list(canonicalTranscripts=canonicalTranscripts, 
        meanTpms=meanTpms,
@@ -87,14 +87,11 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
        id_names=id_names,
        WGCNA=WGCNA,
        GOSlim=go_slim,
-       partition=partition
-
-       #motifs=motifs,
-       #allTriads=allTriads
+       partition=partition,
+       motifs=motifs,
+       allTriads=allTriads
        )
 }
-
-
 
 prepare_hist_stats<-function(table, column="size_cds"){
     table<-table[table[,column]>0,]
@@ -790,13 +787,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
     local_table<-geneInformation$canonicalTranscripts
     local_table<-local_table[local_table$Gene %in% genes_to_plot,]
-    
+
     local_mean_tpms<-geneInformation$meanTpms
     local_mean_tpms<-local_mean_tpms[local_mean_tpms$gene %in% genes_to_plot, ]
     
     stats_to_plot<-c('size_cds', 'exon_no', 'exon_length','intron_length', 'X3UTR_length', 'X5UTR_length' )
-    
-    
     expected_per_chr<-get_expected_values_per_5pc_bin(geneInformation$canonicalTranscripts, nrow(local_table))
     
     gs<-list()
@@ -805,6 +800,16 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     dir<-paste0(output_path,"/",name)
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 
+    path_motifs<-paste0(dir, "/", "motifs.csv")
+    path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
+
+    write.csv(get_motifs_for_genes(genes_to_plot, geneInformation), 
+        file=path_motifs,
+        row.names=F)
+
+    write.csv(get_motifs_for_triad(genes_to_plot, geneInformation), 
+        file=path_motifs_triads,
+        row.names=F)
 
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Gene summary"))
     for(plot in stats_to_plot){
@@ -872,9 +877,6 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                experiment=s,
                n=observed_gen_desc$total)
 
-
-            
-
             o_l  <- observed_desc$long
             og_l <- observed_gen_desc$long
             e_l  <- expected_desc$long
@@ -920,8 +922,6 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
               expected_desc, 
               expected_gen_desc, 
               experiment=s, title=name  )
-            
-            
 
             plots[[length(plots)+1]] <- table_with_title(paste(name,s, "Observed",sep="\n"),
                 observed_desc$pasted
@@ -938,9 +938,6 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                 )
             name<-name_tmp
         }
-        
-        
-        
     }
     
     output_summary<-paste0(dir, "/", "summary_from_histograms.csv")
@@ -976,8 +973,6 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
     output_enrichment<-paste0(dir, "/", "enrichment.csv")
     write.csv(all_enrichments, file=output_enrichment)
-    
-    
     g1
 }
 
@@ -985,14 +980,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
 
 get_counts_values_per_5pc_bin<-function(gene_table,group_in_single_chromosome=FALSE){
-
     query<-"SELECT Chr, chr_group, genome,scaled_5per_position, count(*) as count 
     FROM
     gene_table 
     WHERE Chr != 'chrUn'
     GROUP BY  Chr, chr_group, genome, scaled_5per_position"
-    
-    counts<-sqldf(query)
     if(group_in_single_chromosome){
         query<-"SELECT 'All' as Chr, 'all' as chr_group, 'all'  as genome,
         scaled_5per_position, count(*)/21 as count 
@@ -1002,7 +994,6 @@ get_counts_values_per_5pc_bin<-function(gene_table,group_in_single_chromosome=FA
         GROUP BY scaled_5per_position"
     }
     counts<-sqldf(query)
-
     counts
 }
 
@@ -1031,20 +1022,12 @@ plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
     
     p <-ggplot(expected_per_chr,aes(scaled_5per_position, expected, group=Chr)) 
     p <- p + xlim(0,100)
-    
-    
-    
-    
     p <- p + geom_line(data=expected_per_chr[, c("scaled_5per_position", "expected", "Chr")],
      aes(x=scaled_5per_position, y=expected,group=Chr 
         ),
      color='black', size=1, alpha=0.1 ) 
     
-    
     p <- p + ylab(" count ") + xlab("")
-    
-    
-    
     if(!is.null(expected_all_chromosomes)){
         expected_all_chromosomes$expected <- expected_all_chromosomes$expected/21
         exp_norm <-expected_all_chromosomes[, c("scaled_5per_position", "expected", "Chr")]
@@ -1054,7 +1037,6 @@ plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
     }
     p  <- p + theme_bw()
     p1 <- p + geom_line(color="red", alpha=0.3) 
-    
     p1 <- p1 + geom_point(data=t1, aes(x=scaled_5per_position, y=count), color="red")
     p  <-  p + geom_point(data=t2, aes(x=scaled_5per_position, y=count), color="blue")
     
@@ -1201,7 +1183,6 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
     gs<-list()
     local_title = paste0(title, "\n Mean TPM of expressed tissues expressed per 5% bin\nN: ", nrow(table) )
     
-    #t <- table[table$Chr != "chrUn",]
     t1 <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
         FROM tpms 
         JOIN transcripts ON tpms.gene = transcripts.Gene 
@@ -1221,16 +1202,11 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
         WHERE transcripts.Gene in genes_to_plot AND Chr != 'chrUn'
         GROUP BY Chr, scaled_5per_position, chr_group, genome
         ORDER BY Chr, chr_group, genome, scaled_5per_position ")
-    
-    #print("-.-")
-    t1$Chr<-"All"
-    #print(head(t1))
-    #print(head(t2))
 
+    t1$Chr<-"All"
     expected_per_chr <- expected_per_chr[expected_per_chr$Chr != "chrUn",]
     
     p <-ggplot(expected_tissues_mean,aes(x=scaled_5per_position, y=meanTPM, group=Chr)) 
-    
     samples_reduced<-expected_tissues_mean[, c("scaled_5per_position", "meanTPM", "Chr")]
 
     p <- p + geom_line(data=samples_reduced,
@@ -1260,9 +1236,9 @@ plotTPMOfExpressedTissuesAcrossChromosomes<-function(geneInformation,
 
 get_empty_bins_for_partitions<-function(geneInformation){
     partition<-geneInformation$partition
-    #print(partition)
     chrs<-NULL
-    for(i in rownames(partition)){
+    for(i in rownames(partition))
+    {
         chrom<-partition[i,"Chr"]
         length<-partition[i,"Length"]
         Chr<-rep(chrom, length+1)
@@ -1271,23 +1247,24 @@ get_empty_bins_for_partitions<-function(geneInformation){
         chr_group<-rep(substr(chrom, 4,4),length+1)
         genome<-rep(substr(chrom, 5,5),length+1)
         l_partition<-rep(0,length+1)
-        #print(head(partition))
         df<-data.frame(Chr,chr_group, genome, partition=l_partition, bin, count)
-        if(is.null(chrs)){
+        if(is.null(chrs))
+        {
             chrs<-df
-        }else{
+        }else
+        {
             chrs<-rbind(chrs, df)
         }
     }
-    
+
     chrs_with_partition<-sqldf('SELECT chrs.Chr, chrs.chr_group, genome,  CASE 
-WHEN chrs.bin < R1_R2a THEN "R1"
-WHEN chrs.bin < R2a_C  THEN "R2A"
-WHEN chrs.bin < C_R2b  THEN "C"
-WHEN chrs.bin < R2b_R3  THEN "R2B"
-ELSE "R3" END as new_partition, chrs.bin,
-count
-FROM chrs LEFT JOIN partition ON partition.Chr = chrs.Chr   ')
+        WHEN chrs.bin < R1_R2a THEN "R1"
+        WHEN chrs.bin < R2a_C  THEN "R2A"
+        WHEN chrs.bin < C_R2b  THEN "C"
+        WHEN chrs.bin < R2b_R3  THEN "R2B"
+        ELSE "R3" END as new_partition, chrs.bin,
+        count
+        FROM chrs LEFT JOIN partition ON partition.Chr = chrs.Chr   ')
     c("Chr", "chr_group", "genome","partition","bin", "count")->colnames(chrs_with_partition)
     chrs_with_partition
 }
@@ -1295,32 +1272,30 @@ FROM chrs LEFT JOIN partition ON partition.Chr = chrs.Chr   ')
 get_gene_density<-function(genes_to_plot, geneInformation, bin_size=1000000){
     local_table<-geneInformation$canonicalTranscripts
     local_table<-local_table[local_table$Gene %in% genes_to_plot,]
-    
+
     ct<-local_table
     ct$bin <- round(ct$Start / bin_size)
     density <- sqldf("SELECT Chr, chr_group, genome, partition, bin, count(*) as count FROM ct
-GROUP BY Chr, chr_group, genome, partition, bin
-ORDER BY Chr, bin")
+        GROUP BY Chr, chr_group, genome, partition, bin
+        ORDER BY Chr, bin")
     density<-rbind(density, get_empty_bins_for_partitions(geneInformation))
     sqldf("SELECT  Chr, chr_group, genome, partition, bin, sum(count) as count
-FROM density
-GROUP BY Chr, chr_group, genome, partition, bin
-ORDER BY Chr, bin")
-    
-    
+        FROM density
+        GROUP BY Chr, chr_group, genome, partition, bin
+        ORDER BY Chr, bin")
+
+
 }
 
 plot_per_partition_gene_count<-function(table, gene_density, title = "Test"){
-    
+
     gs<-list()
     local_title = paste0(title, "\n Genes per 1MBp \nN: ", nrow(table) )
-    
+
     t1 <- gene_density[gene_density$Chr != "chrUn",]
-    
+
     ylim1 = boxplot.stats(t1$count)$stats[c(1, 5)]
     p <-ggplot(t1,aes(partition, count)) 
-    
-
     p <- p + geom_boxplot(aes(fill=partition)) 
     p <- p + theme_bw()
     p <- p + coord_cartesian(ylim = ylim1*1.05)
@@ -1329,10 +1304,71 @@ plot_per_partition_gene_count<-function(table, gene_density, title = "Test"){
     p1 <- p + facet_grid(chr_group~genome,  drop = FALSE)
     gs[[length(gs)+1]] <- p1
     gs[[length(gs)+1]] <- p
-    
+
     g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2), top=local_title ) 
     g1
 }
+
+get_motifs_for_triad<-function(genes, geneInformation){
+    motifs<-geneInformation$motifs
+    triads<-geneInformation$allTriads
+    motifs<-motifs[motifs$gene %in% genes,]
+    genes_df <- data.frame(gene=genes)
+    triad_counts <- sqldf("
+        SELECT group_id 
+        FROM triads
+        JOIN genes_df 
+        WHERE triads.gene = genes_df.gene
+        GROUP BY group_id
+        HAVING count(*) = 3")
+    query<-"SELECT 
+    motif,
+    motif_set, 
+    chr_group,
+    count(DISTINCT triads.gene) as total_genes,
+    sum(count) as sum,
+    avg(count) as average
+    FROM triads
+    JOIN motifs ON triads.gene = motifs.gene
+    JOIN triad_counts ON triad_counts.group_id = triads.group_id
+    GROUP BY motif, motif_set, chr_group"
+    aggregated<-sqldf(query)
+
+    sums<-sqldf("SELECT motif, motif_set, 
+        sum(total_genes) as sum_total_genes, 
+        sum(sum) as sum_sum, 
+        sum(average) as sum_average
+        FROM aggregated
+        GROUP BY motif, motif_set")
+    percentages<-sqldf("SELECT aggregated.*, 
+        sum_total_genes, sum_sum, sum_average, 
+        100.0 * total_genes / sum_total_genes as percentage_total_genes, 
+        100.0 * sum         / sum_sum         as percentage_sum, 
+        100.0 * average     / sum_average     as percentage_average
+        FROM aggregated JOIN sums 
+        ON  aggregated.motif = sums.motif 
+        AND aggregated.motif_set = sums.motif_set
+        ORDER BY 
+        motif_set, motif,  chr_group ")
+
+    percentages
+}
+
+get_motifs_for_genes<-function(genes, geneInformation){
+    motifs<-geneInformation$motifs
+    motifs<-motifs[motifs$gene %in% genes,]
+    query<-"SELECT 
+    motif,
+    motif_set,
+    count(DISTINCT gene) as total_genes,
+    sum(count) as sum,
+    avg(count) as average
+    FROM motifs
+    GROUP BY motif, motif_set"
+    aggregated<-sqldf(query)
+    aggregated
+}
+
 
 
 
