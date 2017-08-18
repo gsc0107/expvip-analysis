@@ -489,6 +489,18 @@ table_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress",
     tmp$title <- title
     df<-rbind(df,tmp)
 
+    tmp<- prepare_hist_stats(triadMovement, column="factor_count")
+    tmp$value_type <- "No. of conditions of genes(count per triad)"
+    tmp$dataset<-experiment
+    tmp$title <- title
+    df<-rbind(df,tmp)
+
+    tmp<- prepare_hist_stats(triadMovement, column="total_categories")
+    tmp$value_type <- "No. of categories"
+    tmp$dataset<-experiment
+    tmp$title <- title
+    df<-rbind(df,tmp)
+
     df
 }
 
