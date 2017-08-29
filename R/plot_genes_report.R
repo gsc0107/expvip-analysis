@@ -844,8 +844,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
     for(s in unique(geneInformation$meanTpms$subset)){
         plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
+        plots[[length(plots)+1]] <- plot_density_expression(geneInformation,genes_to_plot, experiment=s, title=name) 
         plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
         plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
+
+        
     }
 
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
@@ -977,7 +980,61 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     g1
 }
 
+plot_density_expression<-function(geneInformation,genes_to_plot, experiment="850_samples", min_tpm=0.5, title="Test"){
+    
+    tpms<-geneInformation$meanTpms
+    tpms<-tpms[tpms$gene %in% genes_to_plot, ]
+    
+    local_tpms<-subset(tpms, (subset == experiment) & 
+     ( factor != "all" & factor != "all_means" & factor != "all_mean_filter" ) &
+     value > min_tpm)
+    
+    ct <- geneInformation$canonicalTranscripts
+    
+    local_tpms<-sqldf("SELECT local_tpms.*, ct.genome FROM local_tpms JOIN ct ON ct.gene = local_tpms.gene
+WHERE ct.genome != 'n' ")
+    
+    local_tpms$log_value <- log10(local_tpms$value)
+    
+    local_title <- paste0(title, "\n", experiment)
+    
+    p  <- ggplot(local_tpms, aes(log_value, colour = genome)) 
+    p  <- p + geom_density( ) + theme_bw()
+    p  <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+      strip.text = element_text(size=6))
+    p  <- p + facet_wrap(~ factor, ncol=4) 
+    #p  <- p 
+    p  <- p + ylab("Density") + xlab("")
+    p  <- p + theme(strip.text.x = element_text(margin = margin(.1, 0, .1, 0, "cm")))
 
+    
+    local_tpms<-subset(tpms, (subset == experiment) & 
+     ( factor == "all_mean_filter" ) &
+     value > min_tpm)
+    
+    local_tpms<-sqldf("SELECT local_tpms.*, ct.genome FROM local_tpms JOIN ct ON ct.gene = local_tpms.gene
+WHERE ct.genome != 'n' ")
+    local_tpms$log_value <- log10(local_tpms$value)
+    
+    p2  <- ggplot(local_tpms, aes(log_value, colour = genome)) 
+    p2  <- p2 + geom_density() + theme_bw()
+    p2  <- p2 + theme(axis.text.x = element_text(angle = 90, hjust = 1), 
+      strip.text = element_text(size=6, lineheight=0.5))
+    p2  <- p2 + facet_wrap(~ factor, ncol=1)  #+ xlim(0,15)
+    p2  <- p2 + ylab("") + xlab("log10(TPM)") 
+
+    mytheme <- gridExtra::ttheme_default(
+        core = list(fg_params=list(cex = 0.5)),
+        colhead = list(fg_params=list(cex = 0.5)),
+        rowhead = list(fg_params=list(cex = 0.5)))
+    
+
+    
+    lay <- rbind(c(1),
+       c(2))
+    g1<-arrangeGrob(grobs=list(p,p2), heights=c(0.8,0.2), layout_matrix=lay, top = local_title) 
+    g1
+}
 
 
 get_counts_values_per_5pc_bin<-function(gene_table,group_in_single_chromosome=FALSE){
@@ -1385,7 +1442,7 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
         count_universe_genes<-nrow(universe)
         matrix_for_test[1,2] <- count_gene_set_genes
         matrix_for_test[2,2] <- count_universe_genes
-        
+
         for(m_set in motif_sets){
             universe_motifs<-motifs[motifs$motif_set == m_set &
                                     motifs$gene %in% universe$gene, ]
