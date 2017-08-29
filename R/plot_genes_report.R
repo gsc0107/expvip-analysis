@@ -1326,8 +1326,7 @@ get_motifs_for_triad<-function(genes, geneInformation){
     motif,
     motif_set, 
     chr_group,
-    count(motifs.gene) as total,
-    count(DISTINCT motifs.gene) as total_genes,
+    count(DISTINCT triads.gene) as total_genes,
     sum(count) as sum,
     avg(count) as average
     FROM triads
@@ -1337,7 +1336,6 @@ get_motifs_for_triad<-function(genes, geneInformation){
     aggregated<-sqldf(query)
 
     sums<-sqldf("SELECT motif, motif_set, 
-        sum(total) as sum_total, 
         sum(total_genes) as sum_total_genes, 
         sum(sum) as sum_sum, 
         sum(average) as sum_average
@@ -1345,7 +1343,6 @@ get_motifs_for_triad<-function(genes, geneInformation){
         GROUP BY motif, motif_set")
     percentages<-sqldf("SELECT aggregated.*, 
         sum_total_genes, sum_sum, sum_average, 
-        100.0 * total       / sum_total       as percentage_total, 
         100.0 * total_genes / sum_total_genes as percentage_total_genes, 
         100.0 * sum         / sum_sum         as percentage_sum, 
         100.0 * average     / sum_average     as percentage_average
@@ -1354,6 +1351,7 @@ get_motifs_for_triad<-function(genes, geneInformation){
         AND aggregated.motif_set = sums.motif_set
         ORDER BY 
         motif_set, motif,  chr_group ")
+    
     percentages
 }
 
