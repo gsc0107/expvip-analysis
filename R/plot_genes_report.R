@@ -804,11 +804,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     path_motifs<-paste0(dir, "/", "motifs.csv")
     path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
 
-    write.csv(get_motifs_for_genes(genes_to_plot, geneInformation), 
+    write.csv(get_motifs_for_genes(genes_to_plot, geneInformation, name=name), 
         file=path_motifs,
         row.names=F)
 
-    write.csv(get_motifs_for_triad(genes_to_plot, geneInformation), 
+    write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
         file=path_motifs_triads,
         row.names=F)
 
@@ -1310,7 +1310,7 @@ plot_per_partition_gene_count<-function(table, gene_density, title = "Test"){
     g1
 }
 
-get_motifs_for_triad<-function(genes, geneInformation){
+get_motifs_for_triad<-function(genes, geneInformation, name=name){
     motifs<-geneInformation$motifs
     triads<-geneInformation$allTriads
     motifs<-motifs[motifs$gene %in% genes,]
@@ -1351,23 +1351,84 @@ get_motifs_for_triad<-function(genes, geneInformation){
         AND aggregated.motif_set = sums.motif_set
         ORDER BY 
         motif_set, motif,  chr_group ")
-    
+    percentages$Gene_set <- name
     percentages
 }
 
-get_motifs_for_genes<-function(genes, geneInformation){
+get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
+    datasets<-unique(geneInformation$gene_universe$dataset)
+    total_sets<-length(datasets)
+    gene_universe<-geneInformation$gene_universe
     motifs<-geneInformation$motifs
-    motifs<-motifs[motifs$gene %in% genes,]
-    query<-"SELECT 
-    motif,
-    motif_set,
-    count(DISTINCT gene) as total_genes,
-    sum(count) as sum,
-    avg(count) as average
-    FROM motifs
-    GROUP BY motif, motif_set"
-    aggregated<-sqldf(query)
-    aggregated
+    motif_sets<-unique(motifs$motif_set)
+    alternatives<-c("greater","less")
+    matrix_for_test<-matrix(c(1, 2, 3, 4), nrow = 2, ncol = 2)
+    rownames(matrix_for_test)<-c("gene_set", "universe")
+    colnames(matrix_for_test)<-c("motif", "genes")
+        
+    enrich_all_family <- data.frame(matrix(ncol = 10, nrow = 0))
+    colnames(enrich_all_family) <- c("Universe", 
+                                     "Gene_set",
+                                     "Motif_set",
+                                     "Motif", 
+                                     "subset_gene_count", 
+                                     "universe_gene_count", 
+                                     "subset_motif_count", 
+                                     "universe_motif_count",
+                                     "fisher_alternative",
+                                     "fisher_pvalue")
+    
+    for(dataset in datasets){
+        universe<-gene_universe[gene_universe$dataset == dataset,]        
+        genes_in_universe<-genes_to_plot[genes_to_plot %in% universe$gene]
+        count_gene_set_genes<-length(genes_in_universe)
+        count_universe_genes<-nrow(universe)
+        matrix_for_test[1,2] <- count_gene_set_genes
+        matrix_for_test[2,2] <- count_universe_genes
+        
+        for(m_set in motif_sets){
+            universe_motifs<-motifs[motifs$motif_set == m_set &
+                                    motifs$gene %in% universe$gene, ]
+            
+            gene_set_motifs<-universe_motifs[universe_motifs$motif_set == m_set &
+                                             universe_motifs$gene %in% genes_in_universe, ]
+            
+            motifs_in_gene_set <- unique(gene_set_motifs$motif)  
+            motifs_in_universe <- unique(universe_motifs$motif)  
+            
+            motifs_gene_set_sum <-aggregate(gene_set_motifs$count, 
+                                            by=list(motif=gene_set_motifs$motif), 
+                                            FUN=sum, na.rm=TRUE)
+            
+            motifs_universe_sum <-aggregate(universe_motifs$count,
+                                            by=list(motif=universe_motifs$motif), 
+                                            FUN=sum, na.rm=TRUE)
+
+            for(motif in motifs_in_gene_set){
+                matrix_for_test[1,1] <- motifs_gene_set_sum[motifs_gene_set_sum$motif == motif,]$x
+                matrix_for_test[2,1] <- motifs_universe_sum[motifs_universe_sum$motif == motif,]$x
+                
+                for(alternative in alternatives){
+                    fisher_out <- fisher.test(matrix_for_test, alternative = alternative)
+                    enrich_all_family[nrow(enrich_all_family) + 1,] = list(dataset, 
+                                                                           name,
+                                                                           m_set,
+                                                                           motif, 
+                                                                           matrix_for_test[1,2], 
+                                                                           matrix_for_test[2,2], 
+                                                                           matrix_for_test[1,1], 
+                                                                           matrix_for_test[2,1], 
+                                                                           alternative,
+                                                                           fisher_out$p.value)
+                }
+            }   
+        }
+    }
+
+    enrich_all_family$subset_average  <-enrich_all_family$subset_motif_count   / enrich_all_family$subset_gene_count
+    enrich_all_family$universe_average<-enrich_all_family$universe_motif_count / enrich_all_family$universe_gene_count
+    enrich_all_family$padj_BH <- p.adjust(enrich_all_family$fisher_pvalue, method="BH")
+    enrich_all_family
 }
 
 
