@@ -855,6 +855,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     triada_movment_df<-NULL
 
     for(s in unique(geneInformation$triads$dataset)){
+        plot_clust_dist(geneInformation, genes_to_plot, experiment=s, title = paste0(s,"\n",name))
         for(i in c(1,2,3) ){
             local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
             if(nrow(local_triads$triads)== 0){
@@ -1106,6 +1107,76 @@ plot_per_chromosome_5pc_bins_overlap_lines<-function(table,expected_per_chr,
     g1<-arrangeGrob(grobs=gs, ncol=1, heights=c(0.8,0.2),  top=local_title ) 
     g1
 }
+
+plot_triad_movment<-function(geneInformation,
+                          genes_to_plot, 
+                          experiment="HC_850_samples",
+                          title="Test", 
+                             density = FALSE , 
+                             points  = TRUE
+                          ){
+    
+    allTriads<-geneInformation$allTriads
+    selectedTriads<-unique(allTriads[allTriads$gene %in% genes_to_plot, "group_id"])
+    
+    tmp_df<-geneInformation$triads[geneInformation$triads$group_id %in% selectedTriads &
+                                  geneInformation$triads$dataset == experiment,
+                                   c("group_id","factor","clust","description","chr_group","normalised_triad", "Distance")]
+    clust_df <- dcast(tmp_df,group_id +clust+description+factor+Distance ~ chr_group, value.var = "normalised_triad")
+    
+    clust_df_all_mean <- clust_df[clust_df$factor == 'all_mean_filter' , ]
+    clust_df_factors  <- clust_df[clust_df$factor  != 'all_mean_filter' , ]
+    
+    tern_mean <- ggtern(clust_df_all_mean,aes(A,B,D,color=description)) +  theme_bw() +
+        theme_legend_position(x = "topleft")  +
+       theme_arrownormal() + guides(colour = guide_legend(override.aes = list(alpha = 1))) +ggtitle("Mean")
+    
+    tern_all <- ggtern(clust_df_factors,aes(A,B,D,color=description)) + theme_bw() +
+       guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    
+    tern_fact <- tern_all + facet_wrap(~factor, ncol=4) +
+    theme_notitles() + theme(legend.position = "none") + theme_nolabels() 
+    
+    tern_all <-  tern_all + theme_legend_position(x = "topleft")   + theme_arrownormal()  +ggtitle("All factors")
+    
+    if(density){
+        tern_mean<- tern_mean  + stat_density_tern(
+        geom='polygon', show.legend = F,
+
+        aes(fill=..level..),
+            
+        bins=10,
+        color='grey')
+       tern_all <- tern_all   +  stat_density_tern(
+        geom='polygon',show.legend = F,
+        aes(fill=..level..),
+        bins=10,
+        color='grey') 
+      tern_fact<- tern_fact  +  stat_density_tern(
+        geom='polygon',show.legend = F,
+        aes(fill=..level..),
+        bins=5,
+        color='grey') 
+        
+    }
+    if(points){
+        tern_mean <- tern_mean  +  geom_point(alpha=0.25)
+        tern_all  <- tern_all   +  geom_point(alpha=0.25) 
+        tern_fact <- tern_fact  +  geom_point(alpha=0.25) 
+    }
+    
+    
+    gs<-list(tern_mean, tern_all, tern_fact)
+     
+    lay <- rbind(c( 1, 3),
+                 c( 2, 3)
+                 )
+
+    g2 <- arrangeGrob(grobs = gs, layout_matrix = lay, top = title)
+    g2
+}
+
+
 
 plotExpressedTissuesAcrossChromosomes<-function(geneInformation, 
     genes_to_plot, 
@@ -1490,7 +1561,65 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
     enrich_all_family
 }
 
+plot_normalized_triads<-function(triads){
+    
+    p <- ggplot(triads, aes(chr_group, normalised_triad))
+    p <- p + geom_boxplot(outlier.alpha = 0.05) 
+    p <- p + ylab("Contribution") + xlab("Chromosome group")
+    p
+}
 
+
+plot_clust_dist<-function(geneInformation,
+                          genes_to_plot, 
+                          experiment="HC_850_samples",
+                          title="All" 
+                          ){
+    
+    allTriads<-geneInformation$allTriads
+    selectedTriads<-unique(allTriads[allTriads$gene %in% genes_to_plot, "group_id"])
+    
+    tmp_df<-geneInformation$triads[geneInformation$triads$group_id %in% selectedTriads &
+                                  geneInformation$triads$dataset == experiment,
+                                   c("group_id","factor","clust","description","chr_group","normalised_triad")]
+    clust_df <- dcast(tmp_df,group_id +clust+description+factor ~ chr_group, value.var = "normalised_triad")
+    clusters<-sort(unique(tmp_df$description))
+    
+    tern <- ggtern(clust_df,aes(A,B,D,color=description)) + 
+       geom_point(alpha=0.15) + theme_legend_position(x = "topleft")  +
+       theme_arrownormal() + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    
+    gs<-list(tern)
+    dat <- data.frame(
+        A=numeric(0),B=numeric(0), D=numeric(0), size=numeric(0),stringsAsFactors=FALSE ) 
+    
+    
+    rownames(dat)<-rownames(clusters)
+    for(c in clusters){
+        tmp_df_clust<-tmp_df[tmp_df$description==c,]
+        p <- plot_normalized_triads(tmp_df_clust)
+        p <- p + ylim(0,1)
+        p <- p + ylab("") + xlab("")
+        p <- p + ggtitle(c)
+        dat[c,1] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group=="A","normalised_triad"]),digits=2)
+        dat[c,2] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group=="B","normalised_triad"]),digits=2)
+        dat[c,3] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group=="D","normalised_triad"]),digits=2)
+        dat[c,4] <- nrow(tmp_df_clust)
+        gs[[length(gs)+1]] <- p
+    }
+    
+    total_size<-sum(dat$size)
+    dat$percentage<-round(100*dat$size/total_size,digits=2)
+    
+    gs[[length(gs)+1]]<-tableGrob(dat)
+    lay <- rbind(c( 1, 1, 1, 2, 4, 7),
+                 c( 1, 1, 1, 3, 5, 8),
+                 c( 9, 9, 9, 6,NA,NA)
+                 )
+
+    g2 <- arrangeGrob(grobs = gs, layout_matrix = lay, top = title)
+    g2
+}
 
 
 args = commandArgs(trailingOnly=TRUE)
