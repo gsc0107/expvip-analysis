@@ -994,16 +994,17 @@ plot_density_expression<-function(geneInformation,genes_to_plot, experiment="850
     local_tpms<-sqldf("SELECT local_tpms.*, ct.genome FROM local_tpms JOIN ct ON ct.gene = local_tpms.gene
 WHERE ct.genome != 'n' ")
     
-    local_tpms$log_value <- log10(local_tpms$value)
+    local_tpms$log_value <- log2(local_tpms$value)
     
     local_title <- paste0(title, "\n", experiment)
     
-    p  <- ggplot(local_tpms, aes(log_value, colour = genome)) 
+    p  <- ggplot(local_tpms, aes(value, colour = genome)) 
     p  <- p + geom_density( ) + theme_bw()
     p  <- p + theme(axis.text.x = element_text(angle = 90, hjust = 1), 
       strip.text = element_text(size=6))
     p  <- p + facet_wrap(~ factor, ncol=4) 
-    #p  <- p 
+    p  <- p + scale_x_continuous(trans='log2',expand = c(0, 0)) 
+    p <- p + coord_cartesian(xlim = c(0.5, 128))
     p  <- p + ylab("Density") + xlab("")
     p  <- p + theme(strip.text.x = element_text(margin = margin(.1, 0, .1, 0, "cm")))
 
@@ -1014,15 +1015,16 @@ WHERE ct.genome != 'n' ")
     
     local_tpms<-sqldf("SELECT local_tpms.*, ct.genome FROM local_tpms JOIN ct ON ct.gene = local_tpms.gene
 WHERE ct.genome != 'n' ")
-    local_tpms$log_value <- log10(local_tpms$value)
+    local_tpms$log_value <- log2(local_tpms$value)
     
-    p2  <- ggplot(local_tpms, aes(log_value, colour = genome)) 
+    p2  <- ggplot(local_tpms, aes(value, colour = genome)) 
     p2  <- p2 + geom_density() + theme_bw()
     p2  <- p2 + theme(axis.text.x = element_text(angle = 90, hjust = 1), 
       strip.text = element_text(size=6, lineheight=0.5))
-    p2  <- p2 + facet_wrap(~ factor, ncol=1)  #+ xlim(0,15)
-    p2  <- p2 + ylab("") + xlab("log10(TPM)") 
 
+    p2  <- p2 + ylab("") + xlab("TPM") 
+    p2  <- p2 + scale_x_continuous(trans='log2',expand = c(0, 0))
+    p2 <- p2 + coord_cartesian(xlim = c(0.5, 128))
     mytheme <- gridExtra::ttheme_default(
         core = list(fg_params=list(cex = 0.5)),
         colhead = list(fg_params=list(cex = 0.5)),
