@@ -1125,7 +1125,9 @@ plot_triad_movment<-function(geneInformation,
     clust_df <- dcast(tmp_df,group_id +clust+description+factor+Distance ~ chr_group, value.var = "normalised_triad")
     
     clust_df_all_mean <- clust_df[clust_df$factor == 'all_mean_filter' , ]
-    clust_df_factors  <- clust_df[clust_df$factor  != 'all_mean_filter' , ]
+    clust_df_factors  <- clust_df[clust_df$factor  != 'all_mean_filter' & 
+                                  clust_df$factor  != 'all_means' &
+                                  clust_df$factor  != 'all' , ]
     
     tern_mean <- ggtern(clust_df_all_mean,aes(A,B,D,color=description)) +  theme_bw() +
         theme_legend_position(x = "topleft")  +
