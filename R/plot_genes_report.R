@@ -9,6 +9,7 @@ library(clue)
 library(geometry)
 library(gtable)
 library(goseq)
+library(plyr)
 
 loadGeneInformation<-function(dir="../TablesForExploration"){
     path<-paste0(dir,"/CanonicalTranscript.rds")
@@ -801,17 +802,24 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     dir<-paste0(output_path,"/",name)
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
 
-    path_motifs<-paste0(dir, "/", "motifs.csv")
+    path_motifs_t_test<-paste0(dir, "/", "motifs_t_test.csv")
+    path_motifs_fisher<-paste0(dir, "/", "motifs_fisher.csv")
     path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
 
-    write.csv(get_motifs_for_genes(genes_to_plot, geneInformation, name=name), 
+    res<-get_motifs_for_genes(genes_to_plot, geneInformation, name=name)
+
+    write.csv(res$t, 
+        file=path_motifs_t_test,
+        row.names=F)
+    write.csv(res$path_motifs_fisher, 
         file=path_motifs,
         row.names=F)
 
     write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
         file=path_motifs_triads,
         row.names=F)
-
+    res<-NULL
+    gc()
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Gene summary"))
     for(plot in stats_to_plot){
         p<-plotHistogram(local_table,column=plot)
@@ -1503,20 +1511,36 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
                                      "Gene_set",
                                      "Motif_set",
                                      "Motif", 
-                                     "subset_gene_count", 
-                                     "universe_gene_count", 
-                                     "subset_motif_count", 
-                                     "universe_motif_count",
+                                     "have_gene_set", 
+                                     "dont_have_gene_set", 
+                                     "have_universe", 
+                                     "dont_have_universe",
                                      "fisher_alternative",
                                      "fisher_pvalue")
+    
+    enrich_t_test <- data.frame(matrix(ncol = 11, nrow = 0))
+    colnames(enrich_t_test) <- c("Universe", 
+                                     "Gene_set",
+                                     "Motif_set",
+                                     "Motif", 
+                                     "gene_set_gene_count", 
+                                     "universe_gene_count", 
+                                     "gene_set_motif_mean", 
+                                     "universe_motif_mean",
+                                     "statistic_t",
+                                     "parameter_df",
+                                     "p_value")
     
     for(dataset in datasets){
         universe<-gene_universe[gene_universe$dataset == dataset,]        
         genes_in_universe<-genes_to_plot[genes_to_plot %in% universe$gene]
         count_gene_set_genes<-length(genes_in_universe)
         count_universe_genes<-nrow(universe)
-        matrix_for_test[1,2] <- count_gene_set_genes
-        matrix_for_test[2,2] <- count_universe_genes
+        #We advance the iteration if we are comparing the universe to itself. This is because
+        #The statistical tests fail when both sets are exactly the same. 
+        if(count_gene_set_genes == count_universe_genes) next
+        #matrix_for_test[1,2] <- count_gene_set_genes
+        #matrix_for_test[2,2] <- count_universe_genes 
 
         for(m_set in motif_sets){
             universe_motifs<-motifs[motifs$motif_set == m_set &
@@ -1528,39 +1552,82 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
             motifs_in_gene_set <- unique(gene_set_motifs$motif)  
             motifs_in_universe <- unique(universe_motifs$motif)  
             
-            motifs_gene_set_sum <-aggregate(gene_set_motifs$count, 
-                                            by=list(motif=gene_set_motifs$motif), 
-                                            FUN=sum, na.rm=TRUE)
+            motifs_gene_set_count<-count(gene_set_motifs, "motif")
+            motifs_universe_count<-count(universe_motifs, "motif")
             
-            motifs_universe_sum <-aggregate(universe_motifs$count,
-                                            by=list(motif=universe_motifs$motif), 
-                                            FUN=sum, na.rm=TRUE)
 
             for(motif in motifs_in_gene_set){
-                matrix_for_test[1,1] <- motifs_gene_set_sum[motifs_gene_set_sum$motif == motif,]$x
-                matrix_for_test[2,1] <- motifs_universe_sum[motifs_universe_sum$motif == motif,]$x
+ 
+                subset_genes <- count_gene_set_genes
+                all_genes    <- count_universe_genes
+    
+                subset_genes_motif <- motifs_gene_set_count[motifs_gene_set_count$motif==motif,"freq"]
+                all_genes_motif    <- motifs_universe_count[motifs_universe_count$motif==motif,"freq"]
                 
+                a <- subset_genes_motif
+                b <- all_genes_motif - subset_genes_motif
+                c <- subset_genes - subset_genes_motif
+                d <- all_genes - all_genes_motif - c
+                #print(motif)
+                matrix_for_test<-matrix(c(a, b, c, d), nrow = 2, ncol = 2)
+                
+                rownames(matrix_for_test)<-c("gene_set", "universe")
+                colnames(matrix_for_test)<-c("have", "dont_have")
+                #print(matrix_for_test)
                 for(alternative in alternatives){
                     fisher_out <- fisher.test(matrix_for_test, alternative = alternative)
                     enrich_all_family[nrow(enrich_all_family) + 1,] = list(dataset, 
                                                                            name,
                                                                            m_set,
                                                                            motif, 
-                                                                           matrix_for_test[1,2], 
-                                                                           matrix_for_test[2,2], 
                                                                            matrix_for_test[1,1], 
+                                                                           matrix_for_test[1,2], 
                                                                            matrix_for_test[2,1], 
+                                                                           matrix_for_test[2,2], 
                                                                            alternative,
                                                                            fisher_out$p.value)
                 }
+                
+                #Here the student T starts. We will use a new dataframe. 
+                universe_motif_counts<-universe_motifs[universe_motifs$motif==motif, "count"]
+                gene_set_motif_counts<-gene_set_motifs[gene_set_motifs$motif==motif, "count"]
+                if(length(gene_set_motif_counts) > 3 ){
+                    t_test<-unlist(t.test(gene_set_motif_counts, universe_motif_counts))
+                    enrich_t_test[nrow(enrich_t_test) + 1,] = list(dataset,
+                                                                   name, 
+                                                                   m_set, 
+                                                                   motif,
+                                                                   length(gene_set_motif_counts),
+                                                                   length(universe_motif_counts),
+                                                                   t_test["estimate.mean of x"],
+                                                                   t_test["estimate.mean of y"],
+                                                                   t_test["statistic.t"],
+                                                                   t_test["parameter.df"],
+                                                                   t_test["p.value"]
+                                                                  )
+                }else{
+                   enrich_t_test[nrow(enrich_t_test) + 1,] = list(dataset,
+                                                                   name, 
+                                                                   m_set, 
+                                                                   motif,
+                                                                   length(gene_set_motif_counts),
+                                                                   length(universe_motif_counts),
+                                                                   t_test[NA],
+                                                                   t_test[NA],
+                                                                   t_test[NA],
+                                                                   t_test[NA],
+                                                                   t_test[NA]
+                                                                  ) 
+                }
+                
+            #break
             }   
         }
+        #break
     }
-
-    enrich_all_family$subset_average  <-enrich_all_family$subset_motif_count   / enrich_all_family$subset_gene_count
-    enrich_all_family$universe_average<-enrich_all_family$universe_motif_count / enrich_all_family$universe_gene_count
     enrich_all_family$padj_BH <- p.adjust(enrich_all_family$fisher_pvalue, method="BH")
-    enrich_all_family
+    enrich_t_test$padj_BH <- p.adjust(enrich_t_test$p_value, method="BH")
+    list(fisher=enrich_all_family, t=enrich_t_test)
 }
 
 plot_normalized_triads<-function(triads){
