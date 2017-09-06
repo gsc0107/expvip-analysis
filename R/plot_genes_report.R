@@ -1612,11 +1612,11 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
                                                                    motif,
                                                                    length(gene_set_motif_counts),
                                                                    length(universe_motif_counts),
-                                                                   t_test[NA],
-                                                                   t_test[NA],
-                                                                   t_test[NA],
-                                                                   t_test[NA],
-                                                                   t_test[NA]
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   0,
+                                                                   1
                                                                   ) 
                 }
                 
@@ -1626,7 +1626,7 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
         #break
     }
     enrich_all_family$padj_BH <- p.adjust(enrich_all_family$fisher_pvalue, method="BH")
-    enrich_t_test$padj_BH <- p.adjust(enrich_t_test$p_value, method="BH")
+    enrich_t_test$padj_BH     <- p.adjust(enrich_t_test$p_value, method="BH")
     list(fisher=enrich_all_family, t=enrich_t_test)
 }
 
