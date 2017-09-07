@@ -806,27 +806,12 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     path_motifs_fisher<-paste0(dir, "/", "motifs_fisher.csv")
     path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
 
-    if(run_stats){
-        print("Testing motif enrichment")
-        res<-get_motifs_for_genes(genes_to_plot, geneInformation, name=name)
-
-        write.csv(res$t, 
-            file=path_motifs_t_test,
-            row.names=F)
-        write.csv(res$path_motifs_fisher, 
-            file=path_motifs,
-            row.names=F)
-
-        write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
-            file=path_motifs_triads,
-            row.names=F)
-        res<-NULL
-
-    }
+    
 
     
     gc()
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Gene summary"))
+    print("Plotting gene summaries")
     for(plot in stats_to_plot){
 
         p<-plotHistogram(local_table,column=plot)
@@ -856,24 +841,23 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     
     write.csv(gene_density, file=output_gene_density) 
 
+    print("Plotting TPM summaries")
     plots[[length(plots)+1]] <- textGrob(paste0(name, " TPM summary"))
     for(s in unique(geneInformation$meanTpms$subset)){
         plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
         plots[[length(plots)+1]] <- plot_density_expression(geneInformation,genes_to_plot, experiment=s, title=name) 
         plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
         plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
-
-        if(run_stats==FALSE) break
         
     }
 
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Triad summary"))
     triada_movment_df<-NULL
 
+    print("Plotting triads")
     for(s in unique(geneInformation$triads$dataset)){
-        plots[[length(plots)+1]] <- plot_clust_dist(geneInformation, genes_to_plot, experiment=s, title = paste0(s,"\n",name))
-        plots[[length(plots)+1]] <- plot_triad_movment(geneInformation,
-                          genes_to_plot, 
+        plots[[length(plots)+1]] <- plot_clust_dist(geneInformation,    genes_to_plot, experiment=s, title = paste0(s,"\n",name))
+        plots[[length(plots)+1]] <- plot_triad_movment(geneInformation, genes_to_plot, 
                           experiment=s,
                           title=paste0(s,"\n",name))
         for(i in c(1,2,3) ){
@@ -965,7 +949,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
             name<-name_tmp
         }
         
-        if(run_stats==FALSE) break
+        
     }
     
     output_summary<-paste0(dir, "/", "summary_from_histograms.csv")
@@ -981,6 +965,22 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
     ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
     if(run_stats){
+        print("Testing motif enrichment")
+        res<-get_motifs_for_genes(genes_to_plot, geneInformation, name=name)
+
+        write.csv(res$t, 
+            file=path_motifs_t_test,
+            row.names=F)
+        write.csv(res$path_motifs_fisher, 
+            file=path_motifs,
+            row.names=F)
+
+        write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
+            file=path_motifs_triads,
+            row.names=F)
+        res<-NULL
+        
+        print("Testing GO enrichment")
         all_enrichments <- NULL
         for(g_u in unique(geneInformation$gene_universe$dataset)){
             for(ont in unique(geneInformation$ontologies$ontology)){
