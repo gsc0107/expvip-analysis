@@ -783,7 +783,7 @@ plot_enrichment<-function(enrichment,experiment="HC_CS_no_stress", title="test" 
     g1<-arrangeGrob(grobs=gs, ncol=2, top=local_title )
 }
 
-plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples" , output_path="./Test"){
+plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples" , output_path="./Test", run_stats=FALSE){
 
     summary_df <- NULL
 
@@ -806,22 +806,29 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     path_motifs_fisher<-paste0(dir, "/", "motifs_fisher.csv")
     path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
 
-    res<-get_motifs_for_genes(genes_to_plot, geneInformation, name=name)
+    if(run_stats){
+        print("Testing motif enrichment")
+        res<-get_motifs_for_genes(genes_to_plot, geneInformation, name=name)
 
-    write.csv(res$t, 
-        file=path_motifs_t_test,
-        row.names=F)
-    write.csv(res$path_motifs_fisher, 
-        file=path_motifs,
-        row.names=F)
+        write.csv(res$t, 
+            file=path_motifs_t_test,
+            row.names=F)
+        write.csv(res$path_motifs_fisher, 
+            file=path_motifs,
+            row.names=F)
 
-    write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
-        file=path_motifs_triads,
-        row.names=F)
-    res<-NULL
+        write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
+            file=path_motifs_triads,
+            row.names=F)
+        res<-NULL
+
+    }
+
+    
     gc()
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Gene summary"))
     for(plot in stats_to_plot){
+
         p<-plotHistogram(local_table,column=plot)
         gs[[length(gs)+1]] <- p
         tmp_df <- prepare_hist_stats(local_table, column=plot)
@@ -856,6 +863,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
         plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
 
+        if(run_stats==FALSE) break
         
     }
 
@@ -863,8 +871,13 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     triada_movment_df<-NULL
 
     for(s in unique(geneInformation$triads$dataset)){
-        plot_clust_dist(geneInformation, genes_to_plot, experiment=s, title = paste0(s,"\n",name))
+        plots[[length(plots)+1]] <- plot_clust_dist(geneInformation, genes_to_plot, experiment=s, title = paste0(s,"\n",name))
+        plots[[length(plots)+1]] <- plot_triad_movment(geneInformation,
+                          genes_to_plot, 
+                          experiment=s,
+                          title=paste0(s,"\n",name))
         for(i in c(1,2,3) ){
+
             local_triads <- get_triads_from_genes(genes_to_plot, geneInformation, dataset=s, min_no_genes = i)
             if(nrow(local_triads$triads)== 0){
                 next
@@ -951,6 +964,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
                 )
             name<-name_tmp
         }
+        
+        if(run_stats==FALSE) break
     }
     
     output_summary<-paste0(dir, "/", "summary_from_histograms.csv")
@@ -965,27 +980,28 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
        pages)))
 
     ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
-
-    all_enrichments <- NULL
-    for(g_u in unique(geneInformation$gene_universe$dataset)){
-        for(ont in unique(geneInformation$ontologies$ontology)){
-            enrichment_test<- get_goseq_enrichment(geneInformation, genes_to_plot,  ontology=ont , dataset=g_u)
-            if(nrow(enrichment_test) == 0){
-                next
-            }
-            enrichment_test$universe<-g_u
-            enrichment_test$ontology_universe <- ont
-            if(is.null(all_enrichments)){
-                all_enrichments <- enrichment_test
-            }
-            else{
-                all_enrichments<-rbind(all_enrichments, enrichment_test)
+    if(run_stats){
+        all_enrichments <- NULL
+        for(g_u in unique(geneInformation$gene_universe$dataset)){
+            for(ont in unique(geneInformation$ontologies$ontology)){
+                enrichment_test<- get_goseq_enrichment(geneInformation, genes_to_plot,  ontology=ont , dataset=g_u)
+                if(nrow(enrichment_test) == 0){
+                    next
+                }
+                enrichment_test$universe<-g_u
+                enrichment_test$ontology_universe <- ont
+                if(is.null(all_enrichments)){
+                    all_enrichments <- enrichment_test
+                }
+                else{
+                    all_enrichments<-rbind(all_enrichments, enrichment_test)
+                }
             }
         }
+    
+        output_enrichment<-paste0(dir, "/", "enrichment.csv")
+        write.csv(all_enrichments, file=output_enrichment)
     }
-
-    output_enrichment<-paste0(dir, "/", "enrichment.csv")
-    write.csv(all_enrichments, file=output_enrichment)
     g1
 }
 
