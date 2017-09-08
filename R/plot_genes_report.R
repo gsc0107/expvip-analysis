@@ -801,15 +801,8 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
     
     dir<-paste0(output_path,"/",name)
     dir.create(dir, showWarnings = FALSE, recursive = TRUE)
-
-    path_motifs_t_test<-paste0(dir, "/", "motifs_t_test.csv")
-    path_motifs_fisher<-paste0(dir, "/", "motifs_fisher.csv")
-    path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
-
-    
-
-    
     gc()
+
     plots[[length(plots)+1]] <- textGrob(paste0(name, " Gene summary"))
     print("Plotting gene summaries")
     for(plot in stats_to_plot){
@@ -965,6 +958,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
     ggsave(output_pdf, plot=g1 , width = 210, height = 297, units = "mm")
     if(run_stats){
+
+        path_motifs_t_test<-paste0(dir, "/", "motifs_t_test.csv")
+        path_motifs_fisher<-paste0(dir, "/", "motifs_fisher.csv")
+        path_motifs_triads<-paste0(dir, "/", "motifs_triads.csv")
+
         print("Testing motif enrichment")
         res<-get_motifs_for_genes(genes_to_plot, geneInformation, name=name)
 
@@ -972,7 +970,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
             file=path_motifs_t_test,
             row.names=F)
         write.csv(res$path_motifs_fisher, 
-            file=path_motifs,
+            file=path_motifs_fisher,
             row.names=F)
 
         write.csv(get_motifs_for_triad(genes_to_plot, geneInformation, name=name), 
@@ -1723,4 +1721,4 @@ print(paste0("number of genes to plot: ", length(genes_to_plot)))
 print(head(genes_to_plot))
 
 geneInformation<-loadGeneInformation(dir=folder)
-g <- plot_gene_summary(geneInformation, genes_to_plot, name = name, output_path = path )
+g <- plot_gene_summary(geneInformation, genes_to_plot, name = name,run_stats=TRUE , output_path = path )
