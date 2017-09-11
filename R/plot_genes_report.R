@@ -1671,11 +1671,14 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
 
 
 
-plot_normalized_triads<-function(triads){
-    
-    p <- ggplot(triads, aes(chr_group, normalised_triad))
+plot_normalized_triads<-function(triads){   
+    group.colors <- c(A = "#579D1C", B = "#4B1F6F", D ="#FF950E")
+    p <- ggplot(triads, aes(chr_group, normalised_triad, fill=chr_group))
     p <- p + geom_boxplot(outlier.alpha = 0.05) 
-    p <- p + ylab("Contribution") + xlab("Chromosome group")
+    p <- p + theme_classic()
+    p <- p + scale_fill_manual(values=group.colors) + guides(fill=FALSE)
+    p <- p + ylim(0,1)
+    p <- p + ylab("") + xlab("")    
     p
 }
 
@@ -1689,42 +1692,81 @@ plot_clust_dist<-function(geneInformation,
     allTriads<-geneInformation$allTriads
     selectedTriads<-unique(allTriads[allTriads$gene %in% genes_to_plot, "group_id"])
     
+    
+    
     tmp_df<-geneInformation$triads[geneInformation$triads$group_id %in% selectedTriads &
                                   geneInformation$triads$dataset == experiment,
-                                   c("group_id","factor","clust","description","chr_group","normalised_triad")]
-    clust_df <- dcast(tmp_df,group_id +clust+description+factor ~ chr_group, value.var = "normalised_triad")
-    clusters<-sort(unique(tmp_df$description))
+                                   c("group_id","factor","clust","description","general_description","chr_group","normalised_triad")]
+    clust_df <- dcast(tmp_df,group_id +general_description+clust+description+factor ~ chr_group, value.var = "normalised_triad")
+    clusters<-sort(c("B.suppressed",
+                   "Central",
+                   "A.dominant",
+                   "A.suppressed",
+                   "B.dominant",
+                   "D.suppressed",
+                   "D.dominant"))
     
-    tern <- ggtern(clust_df,aes(A,B,D,color=description)) + 
-       geom_point(alpha=0.15) + theme_legend_position(x = "topleft")  +
-       theme_arrownormal() + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    group.colors <- c("B.suppressed"="#4B1F6F",
+                   "Central"="#999999",
+                   "A.dominant"="#579D1C",
+                   "A.suppressed"="#579D1C",
+                   "B.dominant"="#4B1F6F",
+                   "D.suppressed"="#FF950E",
+                   "D.dominant"="#FF950E")
+    
+     group.fills <- c("B.suppressed"="white",
+                   "Central"="#999999",
+                   "A.dominant"="#579D1C",
+                   "A.suppressed"="white",
+                   "B.dominant"="#4B1F6F",
+                   "D.suppressed"="white",
+                   "D.dominant"="#FF950E")
+    
+    group.shapes <- c("B.suppressed"=25,
+                   "Central"=19,
+                   "A.dominant"=17,
+                   "A.suppressed"=25,
+                   "B.dominant"=17,
+                   "D.suppressed"=25,
+                   "D.dominant"=17)
+
+    tern <- ggtern(clust_df,aes(A,B,D)) + theme_classic()  
+    tern <- tern + geom_point(aes(color=description,
+                      shape=description),
+                  alpha=0.15)  
+    tern <- tern + theme_arrownormal()
+    tern <- tern + theme_legend_position(x = "topleft")  
+    tern <- tern + guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    tern <- tern + scale_color_manual(values=group.colors) 
+    tern <- tern + scale_shape_manual(values=group.shapes) 
+    #tern <- tern + scale_fill_discrete(values=group.fills) 
     
     gs<-list(tern)
     dat <- data.frame(
         A=numeric(0),B=numeric(0), D=numeric(0), size=numeric(0),stringsAsFactors=FALSE ) 
-    
-    
+
     rownames(dat)<-rownames(clusters)
     for(c in clusters){
+        
         tmp_df_clust<-tmp_df[tmp_df$description==c,]
-        p <- plot_normalized_triads(tmp_df_clust)
-        p <- p + ylim(0,1)
-        p <- p + ylab("") + xlab("")
+        p <- plot_normalized_triads(tmp_df_clust)       
         p <- p + ggtitle(c)
-        dat[c,1] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group=="A","normalised_triad"]),digits=2)
-        dat[c,2] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group=="B","normalised_triad"]),digits=2)
-        dat[c,3] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group=="D","normalised_triad"]),digits=2)
+        
+        
+        dat[c,1] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group == "A","normalised_triad"]),digits=2)
+        dat[c,2] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group == "B","normalised_triad"]),digits=2)
+        dat[c,3] <- round(100*mean(tmp_df_clust[tmp_df_clust$chr_group == "D","normalised_triad"]),digits=2)
         dat[c,4] <- nrow(tmp_df_clust)
+        
         gs[[length(gs)+1]] <- p
     }
     
     total_size<-sum(dat$size)
     dat$percentage<-round(100*dat$size/total_size,digits=2)
-    
     gs[[length(gs)+1]]<-tableGrob(dat)
     lay <- rbind(c( 1, 1, 1, 2, 4, 7),
                  c( 1, 1, 1, 3, 5, 8),
-                 c( 9, 9, 9, 6,NA,NA)
+                 c( 9, 9, 9, NA,6,NA)
                  )
 
     g2 <- arrangeGrob(grobs = gs, layout_matrix = lay, top = title)
