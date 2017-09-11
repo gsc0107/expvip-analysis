@@ -1589,7 +1589,11 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
                 colnames(matrix_for_test)<-c("have", "dont_have")
                 #print(matrix_for_test)
                 for(alternative in alternatives){
-                    fisher_out <- fisher.test(matrix_for_test, alternative = alternative)
+                    p.value<-2
+                    tmp<-try(fisher.test(matrix_for_test, alternative = alternative))
+                    if(!is.error(tmp)){
+                       p.value<- tmp$p.value
+                    }
                     enrich_all_family[nrow(enrich_all_family) + 1,] = list(dataset, 
                                                                            name,
                                                                            m_set,
@@ -1599,15 +1603,23 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
                                                                            matrix_for_test[2,1], 
                                                                            matrix_for_test[2,2], 
                                                                            alternative,
-                                                                           fisher_out$p.value)
+                                                                           p.value)
                 }
                 
                 #Here the student T starts. We will use a new dataframe. 
                 universe_motif_counts<-universe_motifs[universe_motifs$motif==motif, "count"]
                 gene_set_motif_counts<-gene_set_motifs[gene_set_motifs$motif==motif, "count"]
+                t_test<-list("estimate.mean of x"=0, 
+                             "estimate.mean of y"=0, 
+                             "statistic.t"=0,
+                             "parameter.df"=0, 
+                             "p.value"=2
+                            )
                 if(length(gene_set_motif_counts) > 3 ){
-                    t_test<-unlist(t.test(gene_set_motif_counts, universe_motif_counts))
-                    enrich_t_test[nrow(enrich_t_test) + 1,] = list(dataset,
+                    tmp <- try(unlist(t.test(gene_set_motif_counts, universe_motif_counts)))
+                    if(!is.error(tmp)){
+                       t_test<-tmp  
+                       enrich_t_test[nrow(enrich_t_test) + 1,] = list(dataset,
                                                                    name, 
                                                                    m_set, 
                                                                    motif,
@@ -1619,6 +1631,22 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
                                                                    t_test["parameter.df"],
                                                                    t_test["p.value"]
                                                                   )
+                    }else{
+                        enrich_t_test[nrow(enrich_t_test) + 1,] = list(dataset,
+                                                                   name, 
+                                                                   m_set, 
+                                                                   motif,
+                                                                   length(gene_set_motif_counts),
+                                                                   length(universe_motif_counts),
+                                                                   mean(gene_set_motif_counts),
+                                                                   mean(universe_motif_counts),
+                                                                   0,
+                                                                   0,
+                                                                   2
+                                                                  ) 
+                    }
+                    
+                    
                 }else{
                    enrich_t_test[nrow(enrich_t_test) + 1,] = list(dataset,
                                                                    name, 
@@ -1633,16 +1661,15 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
                                                                    1
                                                                   ) 
                 }
-                
-            #break
             }   
         }
-        #break
     }
     enrich_all_family$padj_BH <- p.adjust(enrich_all_family$fisher_pvalue, method="BH")
     enrich_t_test$padj_BH     <- p.adjust(enrich_t_test$p_value, method="BH")
     list(fisher=enrich_all_family, t=enrich_t_test)
 }
+
+
 
 plot_normalized_triads<-function(triads){
     
