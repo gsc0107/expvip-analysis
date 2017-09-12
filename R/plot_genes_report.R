@@ -11,6 +11,8 @@ library(gtable)
 library(goseq)
 library(plyr)
 
+is.error <- function(x) inherits(x, "try-error")
+
 loadGeneInformation<-function(dir="../TablesForExploration"){
     path<-paste0(dir,"/CanonicalTranscript.rds")
     canonicalTranscripts<-readRDS(path)
@@ -969,7 +971,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         write.csv(res$t, 
             file=path_motifs_t_test,
             row.names=F)
-        write.csv(res$path_motifs_fisher, 
+        write.csv(res$fisher, 
             file=path_motifs_fisher,
             row.names=F)
 
