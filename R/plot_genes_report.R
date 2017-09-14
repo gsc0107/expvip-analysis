@@ -368,7 +368,7 @@ plot_tpm_desc_stats<-function(tpms,subset_tpms, experiment="850_samples", min_tp
     g1
 }
 
-plot_all_means_filteredtpms_summary<-function(tpms, experiment="850_samples", min_tpm=0.5, title="Test"){
+plot_all_means_filteredtpms_summary<-function(tpms, transcripts, experiment="850_samples", min_tpm=0.5, title="Test"){
 
     local_title <- paste0(title, "\n", experiment)
     
@@ -408,7 +408,8 @@ plot_all_means_filteredtpms_summary<-function(tpms, experiment="850_samples", mi
     gs[[length(gs)+1]] <- ggplot(freqs_df, aes(samples, cum_freq)) +
     geom_line() + geom_point() + theme_bw() +
     labs(x="Number of tissues/conditions", y="Cumulative frequency")
-    
+
+    gs[[length(gs)+1]] <- plot_expressed_tissues_across_chromosomes(tpms,transcripts, bin_size = 2 )
     g1<-arrangeGrob(grobs=gs, ncol=1, top=local_title )
     g1
 }
@@ -785,6 +786,67 @@ plot_enrichment<-function(enrichment,experiment="HC_CS_no_stress", title="test" 
     g1<-arrangeGrob(grobs=gs, ncol=2, top=local_title )
 }
 
+plot_expressed_tissues_across_chromosomes<-function(tpms, transcripts,
+                                                title = "Test", bin_size=5){
+    
+    #all_means_filter, ct_with_partition, 
+    #transcripts<-geneInformation$canonicalTranscripts
+    #all_means_filter<-geneInformation$meanTpms
+    #all_means_filter<-all_means_filter[all_means_filter$factor=='all_mean_filter']
+    transcripts$scaled_5per_position <-   bin_size * ceiling(transcripts$scaled_1per_position / bin_size) 
+    transcripts$scaled_5per_position <- ifelse(transcripts$scaled_5per_position == 0, bin_size, transcripts$scaled_5per_position)
+    #transcripts$scaled_5per_position <- transcripts$scaled_pc
+    expected_tissues <- sqldf("SELECT AVG(value) as meanTPM, AVG(samples) as noSamples, scaled_5per_position
+FROM tpms 
+JOIN transcripts ON tpms.gene = transcripts.Gene 
+WHERE geneconf = 'HC' AND Chr != 'chrUn'
+GROUP BY scaled_5per_position")
+    
+    expected_tissues_mean <- sqldf("SELECT 
+Chr,
+chr_group, 
+genome, 
+scaled_5per_position, 
+AVG(value) as meanTPM, 
+AVG(samples) as noSamples, 
+count(*) as count
+FROM tpms 
+JOIN transcripts ON tpms.gene = transcripts.Gene 
+WHERE geneconf = 'HC' AND Chr != 'chrUn'
+GROUP BY Chr, scaled_5per_position, chr_group, genome
+ORDER BY Chr, chr_group, genome, scaled_5per_position ")
+   
+    write.csv(expected_tissues,
+          file="./Figures/MainPaper/NoOfTissuesAcrossChromosome/avg_expressed_tissue_on_all_chromosomes.csv",row.names=F)
+     write.csv(expected_tissues_mean,
+          file="./Figures/MainPaper/NoOfTissuesAcrossChromosome/avg_expressed_tissue_per_chromosomes.csv",row.names=F)
+    
+    gs<-list()
+    local_title = paste0(title, "\n Average expressed per 5% bin\nN: ", nrow(table) )
+    
+    p <-ggplot(expected_tissues_mean,aes(x=scaled_5per_position, y=noSamples, group=Chr)) 
+    samples_reduced<-expected_tissues_mean[, c("scaled_5per_position", "noSamples", "Chr")]
+   
+    p <- p + geom_line(data=samples_reduced,
+                       aes(x=scaled_5per_position, y=noSamples,group=Chr 
+                        ),color='black', size=0.4, alpha=0.2 ) 
+    p <- p + ylab("No of tissues") + xlab("")
+    if(!is.null(expected_tissues)){
+        exp_norm <-expected_tissues[, c("scaled_5per_position", "noSamples")]
+        exp_norm$Chr<-"All"
+        p <- p + geom_line(data=exp_norm,
+                       aes(x=scaled_5per_position, y=noSamples), 
+                           color="blue", size=1, alpha=1)
+    }
+    p  <- p + theme_bw() + theme(axis.text=element_text(size=7),
+          axis.title=element_text(size=7), 
+          panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank()) 
+    p <- p + scale_x_continuous(expand = c(0, 0))
+    p <- p + geom_vline(xintercept = c(9, 28,50,80))
+    p
+}
+
 plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples" , output_path="./Test", run_stats=FALSE){
 
     summary_df <- NULL
@@ -842,7 +904,7 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
         plots[[length(plots)+1]] <- plot_tpms_summary(local_mean_tpms, experiment=s, title=name) 
         plots[[length(plots)+1]] <- plot_density_expression(geneInformation,genes_to_plot, experiment=s, title=name) 
         plots[[length(plots)+1]] <- plot_tpm_desc_stats(geneInformation$meanTpms, local_mean_tpms, experiment=s, title=name)
-        plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, experiment=s, title=name) 
+        plots[[length(plots)+1]] <- plot_all_means_filteredtpms_summary(local_mean_tpms, geneInformation$canonicalTranscripts, experiment=s, title=name) 
         
     }
 
