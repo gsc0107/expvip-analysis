@@ -48,7 +48,11 @@ options(keep.source = TRUE, error =
 
 is.error <- function(x) inherits(x, "try-error")
 
-loadGeneInformation<-function(dir="../TablesForExploration"){
+loadGeneInformation<-function(dir="../TablesForExploration", 
+                              motifs=T, 
+                              WGCNA=F
+                             ){
+    
     path<-paste0(dir,"/CanonicalTranscript.rds")
     canonicalTranscripts<-readRDS(path)
     canonicalTranscripts$intron_length<- canonicalTranscripts$mrna_length -  canonicalTranscripts$exon_length
@@ -100,16 +104,21 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
     path<-paste0(dir, "/id_names_merged.txt")
     id_names <- read.csv(path, header=F, sep = "\t")
     
-    path<-paste0(dir, "/WGCNA_table.csv")
-    WGCNA <-  read.csv(path)
+    if(WGCNA == T){
+        path<-paste0(dir, "/WGCNA_table.csv")
+        WGCNA <-  read.csv(path)    
+    }
     
     path<-paste0(dir, "/ObservedGOTermsWithSlim.csv")
     go_slim<-read.csv(path, row.names=1)
 
-    path<-paste0(dir, "/motifs.rds")
-    motifs <- readRDS(path)
-    motifs<-unique(motifs)
-
+    
+    if(motifs == T){
+        path<-paste0(dir, "/motifs.rds")
+        motifs <- readRDS(path)
+        motifs<-unique(motifs)
+    }
+   
     path<-paste0(dir, "/SegmentalTriads.csv")
     allTriads<-read.csv(path, stringsAsFactors=F)
     only_genes<-allTriads[,c("group_id","A", "B", "D")]
@@ -152,9 +161,10 @@ prepare_hist_stats<-function(table, column="size_cds"){
     stats_list
 }
 
-plotHistogram<-function(table, column="size_cds"){
+plotHistogram<-function(table,
+ column="size_cds",
+ probs = c( 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)){
     table<-table[table[,column]>0,]
-    probs <- c( 0.1, 0.25, 0.5, 0.75, 0.9, 0.95)
     quantiles <- data.frame(quantile(table[,column], prob=probs,na.rm=TRUE, include.lowest=TRUE), stringsAsFactors=FALSE)
     quantiles$quant<-rownames(quantiles)
     colnames(quantiles)<-c("value", "quant")
@@ -165,62 +175,54 @@ plotHistogram<-function(table, column="size_cds"){
     p <- ggplot(table, aes_string(column))
     
     if(nrow(table) > 100){
-     table <- within(table,
-         quantile <- as.integer(
-             cut(table[,column],
-                 unique(quantile(table[,column], 
+       table <- within(table,
+           quantile <- as.integer(
+               cut(table[,column],
+                   unique(quantile(table[,column], 
                     prob=probs,
                     na.rm=TRUE, 
                     include.lowest=TRUE))
-                 )
-             ))
+                   )
+               ))
+       table$quantile<-ifelse(is.na(table$quantile),0,table$quantile)
+       table$quantile<-as.factor(table$quantile)
 
-     table$quantile<-ifelse(is.na(table$quantile),7,table$quantile)
-     table$quantile<-as.factor(table$quantile)
+       iq <- quantiles$value[4] - quantiles$value[2]
 
-     iq <- quantiles$value[4] - quantiles$value[2]
+       xmax <- quantiles$value[3] + (iq * 2)
+       xmin <- quantiles$value[3] - (iq * 2)
+       if(xmin < 0) xmin <- 0
+       if(xmax > local_max)  xmax <- local_max + 1
 
-     xmax <- quantiles$value[3] + (iq * 2)
-     xmin <- quantiles$value[3] - (iq * 2)
-     if(xmin < 0){
-        xmin <- 0
-    }
-    
-    if(xmax > local_max){
-        xmax <- local_max + 1
-    }
-
-    p <- ggplot(table, aes_string(column, fill="quantile"))
-    p <- p + geom_vline(data=quantiles,aes(xintercept=quantiles$value) )
-    for(i in seq(1,nrow(quantiles))){
+       p <- ggplot(table, aes_string(column, fill="quantile"))
+       p <- p + geom_vline(data=quantiles,aes(xintercept=quantiles$value) )
+       for(i in seq(1,nrow(quantiles))){
         x_pos<-quantiles$value[i]
         gtext <- textGrob(quantiles$quant[i], y=0.02,  gp = gpar(fontsize = 6,col = "red"))
         p <- p + annotation_custom(gtext, xmin=x_pos, xmax=x_pos)
+       }
+       p <- p  + xlim(xmin, xmax) + scale_fill_brewer(palette="Dark2")
     }
-    p <- p  + xlim(xmin, xmax) +
-    scale_fill_brewer(palette="Dark2")
-    
-}
 
 
 
 
-p <- p + geom_histogram(bins=50, position = "identity") + theme_bw() 
-p <- p + theme(legend.position="none")
-p <- p + ggtitle(paste0("Mean: ", round(local_mean,2), 
-    " SD:", round(local_sd,2),
-    " CV:", round(local_sd/local_mean, 2), 
-    " Median:", round(median(table[,column],2)),
-    " Max:", round(local_max,2),
-    " N:", nrow(table))) 
-p <- p + theme(plot.title = element_text(size=6))
+    p <- p + geom_histogram(bins=50, position = "identity") + theme_bw() 
+    p <- p + theme(legend.position="none")
+    p <- p + ggtitle(paste0("Mean: ", round(local_mean,2), 
+        " SD:", round(local_sd,2),
+        " CV:", round(local_sd/local_mean, 2), 
+        " Median:", round(median(table[,column],2)),
+        " Max:", round(local_max,2),
+        " N:", nrow(table))) 
+    p <- p + theme(plot.title = element_text(size=6))
 
-stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
-    median =  median(table[,column],2), 
-    max = local_max, 
-    n = nrow(table)
-    )
-p
+    stats_list<-list(mean=local_mean, sd = local_sd, cv = local_sd/local_mean, 
+        median =  median(table[,column],2), 
+        max = local_max, 
+        n = nrow(table)
+        )
+    p
 }
 
 #This function gets the expected number of genes per each 5pc bin.    
