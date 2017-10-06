@@ -19,16 +19,21 @@
 #' counts<-counts[[1]]
 
 loadValuesFromExperiment<-function(metadata, folder, unit="tpm", values=c("Development")){
+    metadata$Sample.IDs <- gsub("-",".",metadata$Sample.IDs)
     v<-values[1]
     v<-gsub(" ","_",v)
+    v<-gsub(",",".",v)
     path<-paste0(folder,"/",v,"_",unit,".tsv")
     ret<-read.table(path, row.names = 1, header= TRUE)
-    for(i in 2:length(values)){
+    if(length(values) > 1){
+      for(i in 2:length(values)){
         v<-values[i]
         v<-gsub(" ","_",v)
+        v<-gsub(",",".",v)
         path<-paste0(folder,"/",v,"_",unit,".tsv")
         tmp<-read.table(path, row.names = 1, header= TRUE)
         ret<-cbind(ret,tmp)
+      }  
     }
     md<-metadata[metadata$Sample.IDs%in%colnames(ret),]
     ret<-ret[,as.character(md$Sample.IDs),]
