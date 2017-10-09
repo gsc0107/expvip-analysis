@@ -578,11 +578,14 @@ plot_dominance_summary<-function(selected_triads, experiment="HC_CS_no_stress", 
 get_dominance_summary_tables_per_factor<-function(selected_triads, 
   description = "description",
   experiment="HC_CS_no_stress",
+  factor = NULL,                                                
   n=NULL
   ){
     triads <- selected_triads$triads
     triads <- triads[triads$dataset==experiment, ]
-    
+    if(!is.null(factor)){
+        triads <- triads[triads$factor==factor, ]
+    }
     query <- paste0("SELECT factor, " , 
         description , 
         " as description, count(*) as count FROM triads GROUP BY factor, " , 
