@@ -50,7 +50,8 @@ is.error <- function(x) inherits(x, "try-error")
 
 loadGeneInformation<-function(dir="../TablesForExploration", 
                               motifs=T, 
-                              WGCNA=F
+                              WGCNA=F, 
+                              meanTpms=T
                              ){
     
     path<-paste0(dir,"/CanonicalTranscript.rds")
@@ -58,11 +59,16 @@ loadGeneInformation<-function(dir="../TablesForExploration",
     canonicalTranscripts$intron_length<- canonicalTranscripts$mrna_length -  canonicalTranscripts$exon_length
     canonicalTranscripts$chr_group <- substr(canonicalTranscripts$Chr,4,4)
     canonicalTranscripts$genome    <- substr(canonicalTranscripts$Chr,5,5)
+    expressed_genes <- canonicalTranscripts$Gene
     
-    path<-paste0(dir, "/MeanTpms.rds")
-    meanTpms <- readRDS(path)
-    expressed_genes<-unique(meanTpms$gene)
+    if(meanTpms == T){
+        path<-paste0(dir, "/MeanTpms.rds")
+        meanTpms <- readRDS(path)
+        expressed_genes<-unique(meanTpms$gene)
+    }
+    
     canonicalTranscripts<-canonicalTranscripts[canonicalTranscripts$Gene %in% expressed_genes, ]
+    
     canonicalTranscripts$scaled_5per_position <-   5 * ceiling(canonicalTranscripts$scaled_1per_position / 5)
     canonicalTranscripts$scaled_5per_position <- ifelse(canonicalTranscripts$scaled_5per_position == 0, 
         5, 
@@ -140,6 +146,8 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
        allTriads=allTriads
        )
 }
+
+
 
 prepare_hist_stats<-function(table, column="size_cds"){
     table<-table[table[,column]>0,]
@@ -1769,6 +1777,92 @@ get_motifs_for_genes<-function(genes_to_plot, geneInformation, name="Test"){
     list(fisher=enrich_all_family, t=enrich_t_test)
 }
 
+plot_triad_movment_single<-function(geneInformation,
+                          genes_to_plot, 
+                          experiment="HC_850_samples",
+                          title="Test", 
+                             density = FALSE , 
+                             points  = TRUE
+                          ){
+    
+    allTriads<-geneInformation$allTriads
+    selectedTriads<-unique(allTriads[allTriads$gene %in% genes_to_plot, "group_id"])
+    
+    tmp_df<-geneInformation$triads[geneInformation$triads$group_id %in% selectedTriads &
+                                  geneInformation$triads$dataset == experiment,
+                                   c("group_id","factor","clust","description","general_description","chr_group","normalised_triad", "Distance")]
+    
+    clust_df <- dcast(tmp_df,group_id + clust + description + general_description + factor + Distance ~ 
+                      chr_group, value.var = "normalised_triad")
+    
+    clust_df_all_mean <- clust_df[clust_df$factor  == 'all_mean_filter' , ]
+    
+    original_description <- clust_df_all_mean[,c("group_id", "description", "general_description")]
+    colnames(original_description)<-c("group_id", "original_description", "original_general_description")
+    
+    clust_df_factors  <- clust_df[clust_df$factor  != 'all_mean_filter' & 
+                                  clust_df$factor  != 'all_means' &
+                                  clust_df$factor  != 'all' , ]
+    #Central="#808A9F",
+    group.colors<-c(A.dominant = "#579D1C", B.dominant = "#4B1F6F", D.dominant ="#FF950E", 
+             Central="#AAAAAA", 
+             A.suppressed = "#7FD127", B.suppressed = "#7D31AF", D.suppressed ="#FFAD42")
+    
+    group.alpha<-c(A.dominant = 1, B.dominant = 1, D.dominant =1, 
+             Central=0.1, 
+             A.suppressed = 0.2, B.suppressed = 0.2, D.suppressed = 0.2)
+    
+    group.alpha.tern<-c(A.dominant = 0.05, B.dominant = 0.05, D.dominant =0.05, 
+             Central=0.05, 
+             A.suppressed = 0.05, B.suppressed = 0.05, D.suppressed = 0.05)
+    
+    
+    clust_df_factors<-merge(clust_df_factors, original_description, by="group_id")
+    
+    clust_df_factors_full<-clust_df_factors
+    clust_df_factors<-clust_df_factors[clust_df_factors$description !=clust_df_factors$original_description , ]
+    
+    tern_all <- ggtern(clust_df_factors,aes(A,B,D,color=original_description)) + theme_bw() 
+     
+    tern_all  <- tern_all   +  geom_point(aes(alpha=original_description)) + 
+    scale_alpha_manual(values=group.alpha.tern) +
+    guides(colour = guide_legend(override.aes = list(alpha = 1))) + 
+    scale_color_manual(values=group.colors)
+    
+    tern_fact <- tern_all + facet_wrap(~original_general_description, ncol=1) + 
+    theme_notitles() + theme(legend.position = "none") + theme_nolabels()
+    
+     tern_all <-  tern_all + theme_legend_position(x = "topleft")   + theme_arrownormal()  +
+    ggtitle("All factors")  
+    
+    tern_fact_2 <- ggtern(clust_df_factors_full,aes(A,B,D,color=original_description)) + theme_bw() 
+     
+    tern_fact_2  <- tern_fact_2   +  geom_point(aes(alpha=original_description)) +
+    scale_alpha_manual(values=group.alpha.tern) +
+    scale_color_manual(values=group.colors)
+    
+    tern_fact_2 <- tern_fact_2 + facet_wrap(~original_general_description, ncol=1) + 
+    theme_notitles() + theme(legend.position = "none") + theme_nolabels()
+    
+    
+    tern_mean <- ggtern(clust_df_all_mean,aes(A,B,D,color=description)) +  theme_bw() +
+        theme_legend_position(x = "topleft")  + scale_color_manual(values=group.colors) +
+       theme_arrownormal() + ggtitle("Mean")
+
+    tern_mean <- tern_mean +  geom_point(aes(alpha=description)) + scale_alpha_manual(values=group.alpha) 
+    #   guides(colour = guide_legend(override.aes = list(alpha = 1)))
+    tern_all
+    
+    
+    gs<-list(tern_mean, tern_all, tern_fact, tern_fact_2)
+    
+    lay <- rbind(c( 1, 3, 4),
+                 c( 2, 3, 4)
+                 )
+
+    g2 <- arrangeGrob(grobs = gs, layout_matrix = lay, top = title)
+    g2
+}
 
 
 plot_normalized_triads<-function(triads){   
