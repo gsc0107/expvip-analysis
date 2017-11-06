@@ -51,7 +51,8 @@ is.error <- function(x) inherits(x, "try-error")
 loadGeneInformation<-function(dir="../TablesForExploration", 
                               motifs=T, 
                               WGCNA=F, 
-                              meanTpms=T
+                              meanTpms=T, 
+                              non_syntenic_triads=F
                              ){
     
     path<-paste0(dir,"/CanonicalTranscript.rds")
@@ -100,6 +101,8 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
     
     path<-paste0(dir,"/Triads.rds")
     triads<-readRDS(path)
+
+
     
     path<-paste0(dir,"/universe_table.csv")
     gene_universe<-read.csv(path)
@@ -132,6 +135,25 @@ FROM ct LEFT JOIN partition_percentages ON ct.chr = partition_percentages.chr   
         variable.name = "chr_group",
         value.name ="gene")
     
+    if(non_syntenic_triads){
+        path<-paste0(dir,"/Non_syn_Triads.rds")
+        tmp<-readRDS(path)
+        triads <- rbind(triads, tmp)
+
+        path<-paste0(dir,"/Non_syn_TriadMovement.rds")
+        tmp<-readRDS(path)
+        triadMovement <- rbind(triadMovement, tmp)
+
+        path<-paste0(dir, "/NonSyntenicTriads.csv")
+        tmp_allTriads<-read.csv(path, stringsAsFactors=F)
+        only_genes<-tmp_allTriads[,c("group_id","A", "B", "D")]
+        tmp_allTriads<-melt(only_genes, id.vars<-c("group_id"),
+            variable.name = "chr_group",
+            value.name ="gene")
+        allTriads<-rbind(allTriads, tmp_allTriads)
+    }
+
+
     list(canonicalTranscripts=canonicalTranscripts, 
        meanTpms=meanTpms,
        triads=triads, 
@@ -957,7 +979,11 @@ plot_gene_summary<-function(geneInformation, genes_to_plot, name="Random Samples
 
     print("Plotting triads")
     for(s in unique(geneInformation$triads$dataset)){
-        plots[[length(plots)+1]] <- plot_clust_dist(geneInformation,    genes_to_plot, experiment=s, title = paste0(s,"\n",name))
+        tmp_plot<-plot_clust_dist(geneInformation,    genes_to_plot, experiment=s, title = paste0(s,"\n",name))
+        if(is.null(tmp_plot)){
+            next
+        }
+        plots[[length(plots)+1]] <- tmp_plot
         plots[[length(plots)+1]] <- plot_triad_movment(geneInformation, genes_to_plot, 
                           experiment=s,
                           title=paste0(s,"\n",name))
@@ -1891,6 +1917,9 @@ plot_clust_dist<-function(geneInformation,
     tmp_df<-geneInformation$triads[geneInformation$triads$group_id %in% selectedTriads &
                                   geneInformation$triads$dataset == experiment,
                                    c("group_id","factor","clust","description","general_description","chr_group","normalised_triad")]
+    if(nrow(tmp_df) == 0){
+        return(NULL)
+    }
     clust_df <- dcast(tmp_df,group_id +general_description+clust+description+factor ~ chr_group, value.var = "normalised_triad")
     clusters<-sort(c("B.suppressed",
                    "Central",
@@ -1983,5 +2012,5 @@ print(name)
 print(paste0("number of genes to plot: ", length(genes_to_plot)))
 print(head(genes_to_plot))
 
-geneInformation<-loadGeneInformation(dir=folder)
+geneInformation<-loadGeneInformation(dir=folder, non_syntenic_triads=T)
 g <- plot_gene_summary(geneInformation, genes_to_plot, name = name,run_stats=TRUE , output_path = path )
